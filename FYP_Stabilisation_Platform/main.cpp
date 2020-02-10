@@ -51,21 +51,21 @@ float MotorSpeed = 0.0;
 float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
 float MAX_PWM = 0.25;             // Max of 1.0 (Full Power)
-volatile long int rightCount = 0; // encoder ticks counter used in ISR
+volatile long int ENCODER_Count = 0; // encoder ticks counter used in ISR
 float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
 float TIME1_Sample_Duration = 0.0;
-float rightWheelRev = 0.0;
-float rightchange = 0.0;
-int rightEncoderSpeed = 0;
-float oldrightCount = 0.0;
+float ENCODER_Wheel_Rev = 0.0;
+float ENCODER_Change = 0.0;
+int ENCODER_Speed = 0;
+float ENCODER_Old_Count = 0.0;
 
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
 void SERIAL_Print();
 void SetSpeed(int MotorSpeed);
-void EncoderCheck();
-void rightEncoderEvent();
+void ENCODER_Check();
+void ENCODER_Event();
 void JOYSTICK_Read();
 float map(float in, float inMin, float inMax, float outMin, float outMax);
 void MOTOR_ISR_Write();
@@ -78,18 +78,18 @@ int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
-  EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
-  SERIAL_PRINT.attach(&SERIAL_Print_ISR, 0.1);
+  EncoderCheckISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
+  SERIAL_PRINT.attach(&SERIAL_Print_ISR, 1);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
-  RH_ENCODER_A.rise(&rightEncoderEvent);
-  RH_ENCODER_A.fall(&rightEncoderEvent);
+  RH_ENCODER_A.rise(&ENCODER_Event);
+  RH_ENCODER_A.fall(&ENCODER_Event);
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
 
-  printf("\nIBT 2 Motor Drive Test \n");
+
 
   while (1) {
     if (SERIAL_Read_Flag) {
@@ -162,8 +162,9 @@ void SERIAL_Read() {
 void SERIAL_Print() {
   // PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
-  //   printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
-  //    printf("RightCount: %f \n\r",rightCount);
+  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev, ENCODER_Count);
+  //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
+  PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
 }
 
 void SetSpeed(int MotorSpeed) {
@@ -219,35 +220,33 @@ float map(float in, float inMin, float inMax, float outMin,
 }
 
 // encoder event for the interrupt call
-void rightEncoderEvent() {
+void ENCODER_Event() {
   if ((RH_ENCODER_A) == 1) {
     if ((RH_ENCODER_B) == 0) {
-      rightCount++;
+      ENCODER_Count++;
     } else {
-      rightCount--;
+      ENCODER_Count--;
     }
   } else {
     if ((RH_ENCODER_B) == 0) {
-      rightCount--;
+      ENCODER_Count--;
     } else {
-      rightCount++;
+      ENCODER_Count++;
     }
   }
 }
 
-void EncoderCheck() {
+void ENCODER_Check() {
   TIME1_Current = TIME1.read_ms();
   TIME1_Sample_Duration = TIME1_Current - TIME1_Previous;
   TIME1_Previous = TIME1_Current;
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
-  // revolution), AND gear reduction ratio is 34, 1 encoder count== 1/(374/34)
-  // Revolution of wheel
-  rightchange = rightCount - oldrightCount;
-  rightWheelRev = rightchange / (17 * ENCODER_INTERVAL) * 60; // right wheel RPM
-  //    rightEncoderSpeed = rightWheelRev * 2 * 3.1415 * 0.05; //velocity=r*w
-  //    (radius of wheel is 5cm) rightEncoderSpeed=60*rightWheelRev;
-  oldrightCount = rightCount;
+  ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
+  ENCODER_Wheel_Rev = ENCODER_Change / (17 * ENCODER_INTERVAL) * 60; // right wheel RPM
+  //    ENCODER_Speed = ENCODER_Wheel_Rev * 2 * 3.1415 * 0.05; //velocity=r*w
+  //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_Wheel_Rev;
+  ENCODER_Old_Count = ENCODER_Count;
 }
 
 // ISR Functions
