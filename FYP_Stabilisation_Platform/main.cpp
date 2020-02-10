@@ -47,7 +47,7 @@ volatile int PWM_Mode = 1; // 1 == 25%, 2==50%, 3==75%, 4=100%
 float MotorSpeed = 0.0;
 float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
-float MAX_PWM = 0.25;             // Max of 1.0 (Full Power)
+float MAX_PWM = 1.00;             // Max of 1.0 (Full Power)
 volatile long int rightCount = 0; // encoder ticks counter used in ISR
 float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
@@ -74,7 +74,7 @@ int main() {
   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
-  SERIAL_PRINT.attach(&SERIAL_Print, 1);
+  SERIAL_PRINT.attach(&SERIAL_Print, 0.1);
   TIME1.start();
 
   L_PWM.period(0.00004);
@@ -121,7 +121,7 @@ int main() {
                           SERIAL_RXDataBuffer[3] - '0') /
                   100;
         //                    MAX_PWM=MAX_PWM/100;
-        PC.printf("Max PWM : %f", MAX_PWM);
+        // PC.printf("Max PWM : %f", MAX_PWM);
         break;
       }
       }
@@ -155,7 +155,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  PC.printf("%f %f \n",TIME1_Current, MotorSpeed);
+  PC.printf("%f %f \n",TIME1_Current, rightWheelRev);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   // printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
   //    printf("RightCount: %f \n\r",rightCount);
