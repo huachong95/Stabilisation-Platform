@@ -4,9 +4,10 @@
 #define R_PWM_PIN D9
 #define JOYSTICK_PIN A0
 #define L_SWITCH_PIN D12
-#define RH_ENCODER_A_PIN D3  // right motor encoder A interrupt pin
-#define RH_ENCODER_B_PIN D2  // right motor encoder B interrupt pin
-#define ENCODER_INTERVAL 0.1 // Encoder read interval
+#define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
+#define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
+#define ENCODER_INTERVAL 0.1       // Encoder read interval
+#define LSWITCH_SLEEP_DURATION 400 // Minimum cycle switch duration required
 
 #include "mbed.h"
 #include <cstdio>
@@ -35,7 +36,7 @@ char SERIAL_RXDataBuffer[128];       // Serial buffer for incoming serial data
 volatile char SERIAL_RX_Counter = 0; // Serial counter used in seral buffer
 volatile bool SERIAL_Read_Flag =
     0; // ISR Flag indicating serial input was received
-volatile bool SERIAL_Print_Flag=0; 
+volatile bool SERIAL_Print_Flag = 0;
 
 // JOYSTICK Variables
 volatile bool JOYSTICK_Read_Flag = 0;
@@ -46,11 +47,10 @@ bool LSWITCH_Flag = 0;
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
-volatile int PWM_Mode = 1; // 1 == 25%, 2==50%, 3==75%, 4=100%
-float MotorSpeed = 0.0;
+float MotorSpeed = 0;
 float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
-float MAX_PWM = 1.0;             // Max of 1.0 (Full Power)
+float MAX_PWM = 1.0;                 // Max of 1.0 (Full Power)
 volatile long int ENCODER_Count = 0; // encoder ticks counter used in ISR
 float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
@@ -59,6 +59,9 @@ float ENCODER_Wheel_Rev = 0.0;
 float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
+
+// LEADSCREW Variables
+float LEADSCREW_Position = 0.0;
 
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
@@ -77,10 +80,9 @@ void LSWITCH_Fall_ISR();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
-//   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
-      MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
+                           //   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
+  MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
-  SERIAL_PRINT.attach(&SERIAL_Print_ISR, 1);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
@@ -89,8 +91,8 @@ int main() {
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
-
-
+  LSWITCH_Home();
+  SERIAL_PRINT.attach(&SERIAL_Print_ISR, 1);
 
   while (1) {
     if (SERIAL_Read_Flag) {
@@ -139,11 +141,11 @@ int main() {
 
     if (JOYSTICK_Read_Flag) {
       JOYSTICK_Read();
-      JOYSTICK_Read_Flag=0;
+      JOYSTICK_Read_Flag = 0;
     }
-    if (SERIAL_Print_Flag){
-        SERIAL_Print();
-        SERIAL_Print_Flag=0; 
+    if (SERIAL_Print_Flag) {
+      SERIAL_Print();
+      SERIAL_Print_Flag = 0;
     }
   }
 }
@@ -163,7 +165,8 @@ void SERIAL_Read() {
 void SERIAL_Print() {
   PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
-  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev, ENCODER_Count);
+  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev,
+  //   ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
 }
@@ -244,16 +247,39 @@ void ENCODER_Check() {
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
-  ENCODER_Wheel_Rev = ENCODER_Change / (17 * ENCODER_INTERVAL) * 60; // right wheel RPM
+  ENCODER_Wheel_Rev =
+      ENCODER_Change / (17 * ENCODER_INTERVAL) * 60; // right wheel RPM
   //    ENCODER_Speed = ENCODER_Wheel_Rev * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_Wheel_Rev;
   ENCODER_Old_Count = ENCODER_Count;
 }
 
-void LSWITCH_Home(){
-    while(LSWITCH_Flag==0){
-        SetSpeed(40);
+void LSWITCH_Home() {
+  bool LSWITCH_Complete_Home = 0;
+  while (LSWITCH_Complete_Home == 0) {
+    while (LSWITCH_Flag == 0) {
+      SetSpeed(45); // Lift platform to hit LSWTICH
     }
+    SetSpeed(0);
+    thread_sleep_for(LSWITCH_SLEEP_DURATION);
+    while (LSWITCH_Flag == 1) {
+      SetSpeed(-30); // Lower platform to release LSWITCH
+    }
+    SetSpeed(0);
+    thread_sleep_for(LSWITCH_SLEEP_DURATION);
+    while (LSWITCH_Flag == 0) {
+      SetSpeed(45); // Lift platform to hit LSWTICH at slower speed
+    }
+    SetSpeed(0);
+    thread_sleep_for(LSWITCH_SLEEP_DURATION);
+    while (LSWITCH_Flag == 1) {
+      SetSpeed(-30); // Lower platform to hit LSWTICH at slower speed
+    }
+    SetSpeed(0);
+    thread_sleep_for(LSWITCH_SLEEP_DURATION);
+    LEADSCREW_Position = 0;
+    LSWITCH_Complete_Home = 1;
+  }
 }
 
 // ISR Functions
@@ -261,4 +287,4 @@ void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
 void LSWITCH_Rise_ISR() { LSWITCH_Flag = 0; } // LSWITCH is released
 void LSWITCH_Fall_ISR() { LSWITCH_Flag = 1; } // LSWITCH is being pressed
-void SERIAL_Print_ISR(){ SERIAL_Print_Flag=1;}
+void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
