@@ -27,7 +27,7 @@ Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
 Ticker EncoderCheckISR; // Ticker interrupt for Encoder ISR
-Timer t;
+Timer TIME1;
 
 // VARIABLE INSTANTIATION
 // SERIAL Variables
@@ -49,9 +49,9 @@ float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
 float MAX_PWM = 0.25;             // Max of 1.0 (Full Power)
 volatile long int rightCount = 0; // encoder ticks counter used in ISR
-int currentTime = 0.0;
-float Previoustime = 0.0;
-float SampleTime = 0.0;
+float TIME1_Current = 0.0;
+float TIME1_Previous = 0.0;
+float TIME1_Sample_Duration = 0.0;
 float rightWheelRev = 0.0;
 float rightchange = 0.0;
 int rightEncoderSpeed = 0;
@@ -75,6 +75,7 @@ int main() {
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
   SERIAL_PRINT.attach(&SERIAL_Print, 1);
+  TIME1.start();
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
@@ -154,7 +155,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  PC.printf("Motor Speed: %f \n", MotorSpeed);
+  PC.printf("%f %f \n",TIME1_Current, MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   // printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
   //    printf("RightCount: %f \n\r",rightCount);
@@ -230,13 +231,11 @@ void rightEncoderEvent() {
 }
 
 void EncoderCheck() {
-  currentTime = t.read_ms();
-  SampleTime = currentTime - Previoustime;
-  Previoustime = currentTime;
+  TIME1_Current = TIME1.read();
+  TIME1_Sample_Duration = TIME1_Current - TIME1_Previous;
+  TIME1_Previous = TIME1_Current;
 
-  // since encoder feedback resolution is 17 for 1 revolution (shaft
-  // revolution), AND gear reduction ratio is 34, 1 encoder count== 1/(374/34)
-  // Revolution of wheel
+  // since encoder feedback resolution is 17 for 1 revolution
   rightchange = rightCount - oldrightCount;
   rightWheelRev = rightchange / (17 * ENCODER_INTERVAL) * 60; // right wheel RPM
   //    rightEncoderSpeed = rightWheelRev * 2 * 3.1415 * 0.05; //velocity=r*w
