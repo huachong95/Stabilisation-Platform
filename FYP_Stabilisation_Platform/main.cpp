@@ -3,7 +3,7 @@
 #define L_PWM_PIN D6
 #define R_PWM_PIN D9
 #define JOYSTICK_PIN A0
-#define L_SWITCH_PIN D13
+#define L_SWITCH_PIN D12
 #define RH_ENCODER_A_PIN D3  // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2  // right motor encoder B interrupt pin
 #define ENCODER_INTERVAL 0.1 // Encoder read interval
@@ -14,7 +14,7 @@
 
 RawSerial PC(USBTX, USBRX, 115200); // tx, rx for CoolTerm output
 DigitalOut led(LED1);
-// DigitalIn LSwitch(L_SWITCH_PIN);
+DigitalIn LSwitch(L_SWITCH_PIN);
 DigitalOut L_EN(L_EN_PIN);
 DigitalOut R_EN(R_EN_PIN);
 PwmOut L_PWM(L_PWM_PIN);
@@ -72,13 +72,13 @@ int main() {
   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
-    SERIAL_PRINT.attach(&SERIAL_Print, 0.1);
+  SERIAL_PRINT.attach(&SERIAL_Print, 0.1);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
   RH_ENCODER_A.rise(&rightEncoderEvent);
   RH_ENCODER_A.fall(&rightEncoderEvent);
-  TIME1.start(); //Startsthe TIME1 timer
+  TIME1.start(); // Startsthe TIME1 timer
 
   printf("\nIBT 2 Motor Drive Test \n");
 
@@ -148,7 +148,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-    PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
+  // PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
   //    printf("RightCount: %f \n\r",rightCount);
