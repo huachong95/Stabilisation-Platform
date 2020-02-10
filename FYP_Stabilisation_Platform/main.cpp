@@ -50,7 +50,7 @@ volatile int PWM_Mode = 1; // 1 == 25%, 2==50%, 3==75%, 4=100%
 float MotorSpeed = 0.0;
 float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
-float MAX_PWM = 0.25;             // Max of 1.0 (Full Power)
+float MAX_PWM = 1.0;             // Max of 1.0 (Full Power)
 volatile long int ENCODER_Count = 0; // encoder ticks counter used in ISR
 float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
@@ -67,6 +67,7 @@ void SetSpeed(int MotorSpeed);
 void ENCODER_Check();
 void ENCODER_Event();
 void JOYSTICK_Read();
+void LSWITCH_Home();
 float map(float in, float inMin, float inMax, float outMin, float outMax);
 void MOTOR_ISR_Write();
 void JOYSTICK_ISR_Read();
@@ -76,7 +77,7 @@ void LSWITCH_Fall_ISR();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
-  JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
+//   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, 1);
@@ -160,7 +161,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  // PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
+  PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev, ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
@@ -237,7 +238,7 @@ void ENCODER_Event() {
 }
 
 void ENCODER_Check() {
-  TIME1_Current = TIME1.read_ms();
+  TIME1_Current = TIME1.read();
   TIME1_Sample_Duration = TIME1_Current - TIME1_Previous;
   TIME1_Previous = TIME1_Current;
 
@@ -247,6 +248,12 @@ void ENCODER_Check() {
   //    ENCODER_Speed = ENCODER_Wheel_Rev * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_Wheel_Rev;
   ENCODER_Old_Count = ENCODER_Count;
+}
+
+void LSWITCH_Home(){
+    while(LSWITCH_Flag==0){
+        SetSpeed(40);
+    }
 }
 
 // ISR Functions
