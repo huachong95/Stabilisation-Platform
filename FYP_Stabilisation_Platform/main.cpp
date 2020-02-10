@@ -6,7 +6,7 @@
 #define L_SWITCH_PIN D13
 #define RH_ENCODER_A_PIN D3  // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2  // right motor encoder B interrupt pin
-#define ENCODER_INTERVAL 0.1 // Encoder read interval
+#define ENCODER_INTERVAL 1 // Encoder read interval
 
 #include "mbed.h"
 #include <cstdio>
@@ -71,7 +71,7 @@ float map(float in, float inMin, float inMax, float outMin, float outMax);
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
-  JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
+//   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
   SERIAL_PRINT.attach(&SERIAL_Print, 0.1);
