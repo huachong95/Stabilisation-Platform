@@ -24,7 +24,7 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 
 Ticker MOTOR_ISR;
-// Ticker SERIAL_PRINT;
+Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
 Ticker EncoderCheckISR; // Ticker interrupt for Encoder ISR
 Timer t;
@@ -35,6 +35,7 @@ char SERIAL_RXDataBuffer[128];       // Serial buffer for incoming serial data
 volatile char SERIAL_RX_Counter = 0; // Serial counter used in seral buffer
 volatile bool SERIAL_Read_Flag =
     0; // ISR Flag indicating serial input was received
+volatile bool SERIAL_Print_Flag=0; 
 
 // JOYSTICK Variables
 volatile bool JOYSTICK_Read_Flag = 0;
@@ -58,7 +59,8 @@ float oldrightCount = 0.0;
 
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
-// void SERIAL_Print();
+void SERIAL_Print();
+void SERIAL_ISR_Print();
 void MOTOR_ISR_Write();
 void JOYSTICK_ISR_Read();
 void SetSpeed(int MotorSpeed);
@@ -72,7 +74,7 @@ int main() {
   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
-  //   SERIAL_PRINT.attach(&SERIAL_Print, 1);
+  SERIAL_PRINT.attach(&SERIAL_Print, 1);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
@@ -131,6 +133,11 @@ int main() {
     if (JOYSTICK_Read_Flag) {
       JOYSTICK_Read();
     }
+
+    if(SERIAL_Print_Flag){
+        SERIAL_Print();
+        SERIAL_Print_Flag=0;
+    }
   }
 }
 
@@ -147,9 +154,9 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  //   PC.printf("Motor Speed: %f \n", MotorSpeed);
+  PC.printf("Motor Speed: %f \n", MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
-  //   printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
+  // printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
   //    printf("RightCount: %f \n\r",rightCount);
 }
 
@@ -240,3 +247,4 @@ void EncoderCheck() {
 // ISR Functions
 void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
+void SERIAL_ISR_Print(){SERIAL_Print_Flag=1;}
