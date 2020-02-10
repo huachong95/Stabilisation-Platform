@@ -14,7 +14,7 @@
 
 RawSerial PC(USBTX, USBRX, 115200); // tx, rx for CoolTerm output
 DigitalOut led(LED1);
-DigitalIn LSwitch(L_SWITCH_PIN);
+InterruptIn LSWITCH(L_SWITCH_PIN);
 DigitalOut L_EN(L_EN_PIN);
 DigitalOut R_EN(R_EN_PIN);
 PwmOut L_PWM(L_PWM_PIN);
@@ -35,10 +35,14 @@ char SERIAL_RXDataBuffer[128];       // Serial buffer for incoming serial data
 volatile char SERIAL_RX_Counter = 0; // Serial counter used in seral buffer
 volatile bool SERIAL_Read_Flag =
     0; // ISR Flag indicating serial input was received
+volatile bool SERIAL_Print_Flag=0; 
 
 // JOYSTICK Variables
 volatile bool JOYSTICK_Read_Flag = 0;
 float JOYSTICK_Y_Position = 0.0;
+
+// LSWITCH Variables
+bool LSWITCH_Flag = 0;
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
@@ -59,25 +63,30 @@ float oldrightCount = 0.0;
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
 void SERIAL_Print();
-void MOTOR_ISR_Write();
-void JOYSTICK_ISR_Read();
 void SetSpeed(int MotorSpeed);
 void EncoderCheck();
 void rightEncoderEvent();
 void JOYSTICK_Read();
 float map(float in, float inMin, float inMax, float outMin, float outMax);
+void MOTOR_ISR_Write();
+void JOYSTICK_ISR_Read();
+void SERIAL_Print_ISR();
+void LSWITCH_Rise_ISR();
+void LSWITCH_Fall_ISR();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
-  SERIAL_PRINT.attach(&SERIAL_Print, 0.1);
+  SERIAL_PRINT.attach(&SERIAL_Print_ISR, 0.1);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
   RH_ENCODER_A.rise(&rightEncoderEvent);
   RH_ENCODER_A.fall(&rightEncoderEvent);
+  LSWITCH.rise(&LSWITCH_Rise_ISR);
+  LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
 
   printf("\nIBT 2 Motor Drive Test \n");
@@ -118,8 +127,6 @@ int main() {
                           10 * (SERIAL_RXDataBuffer[2] - '0') +
                           SERIAL_RXDataBuffer[3] - '0') /
                   100;
-        //                    MAX_PWM=MAX_PWM/100;
-        PC.printf("Max PWM : %f", MAX_PWM);
         break;
       }
       }
@@ -131,6 +138,11 @@ int main() {
 
     if (JOYSTICK_Read_Flag) {
       JOYSTICK_Read();
+      JOYSTICK_Read_Flag=0;
+    }
+    if (SERIAL_Print_Flag){
+        SERIAL_Print();
+        SERIAL_Print_Flag=0; 
     }
   }
 }
@@ -241,3 +253,6 @@ void EncoderCheck() {
 // ISR Functions
 void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
+void LSWITCH_Rise_ISR() { LSWITCH_Flag = 0; } // LSWITCH is released
+void LSWITCH_Fall_ISR() { LSWITCH_Flag = 1; } // LSWITCH is being pressed
+void SERIAL_Print_ISR(){ SERIAL_Print_Flag=1;}
