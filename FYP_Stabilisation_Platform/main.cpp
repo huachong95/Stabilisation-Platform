@@ -133,6 +133,7 @@ int main() {
 
     if (JOYSTICK_Read_Flag) {
       JOYSTICK_Read();
+      JOYSTICK_Read_Flag=0;
     }
 
     if(SERIAL_Print_Flag){
