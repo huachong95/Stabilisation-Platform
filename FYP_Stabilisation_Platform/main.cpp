@@ -24,10 +24,10 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 
 Ticker MOTOR_ISR;
-// Ticker SERIAL_PRINT;
+Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
 Ticker EncoderCheckISR; // Ticker interrupt for Encoder ISR
-Timer t;
+Timer TIME1;
 
 // VARIABLE INSTANTIATION
 // SERIAL Variables
@@ -48,9 +48,9 @@ float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
 float MAX_PWM = 0.25;             // Max of 1.0 (Full Power)
 volatile long int rightCount = 0; // encoder ticks counter used in ISR
-int currentTime = 0.0;
-float Previoustime = 0.0;
-float SampleTime = 0.0;
+float TIME1_Current = 0.0;
+float TIME1_Previous = 0.0;
+float TIME1_Sample_Duration = 0.0;
 float rightWheelRev = 0.0;
 float rightchange = 0.0;
 int rightEncoderSpeed = 0;
@@ -58,7 +58,7 @@ float oldrightCount = 0.0;
 
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
-// void SERIAL_Print();
+void SERIAL_Print();
 void MOTOR_ISR_Write();
 void JOYSTICK_ISR_Read();
 void SetSpeed(int MotorSpeed);
@@ -72,12 +72,13 @@ int main() {
   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
       MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
   EncoderCheckISR.attach(&EncoderCheck, ENCODER_INTERVAL);
-  //   SERIAL_PRINT.attach(&SERIAL_Print, 1);
+    SERIAL_PRINT.attach(&SERIAL_Print, 0.1);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
   RH_ENCODER_A.rise(&rightEncoderEvent);
   RH_ENCODER_A.fall(&rightEncoderEvent);
+  TIME1.start(); //Startsthe TIME1 timer
 
   printf("\nIBT 2 Motor Drive Test \n");
 
@@ -147,7 +148,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  //   PC.printf("Motor Speed: %f \n", MotorSpeed);
+    PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, RightCount: %ld \n\r", rightWheelRev, rightCount);
   //    printf("RightCount: %f \n\r",rightCount);
@@ -223,9 +224,9 @@ void rightEncoderEvent() {
 }
 
 void EncoderCheck() {
-  currentTime = t.read_ms();
-  SampleTime = currentTime - Previoustime;
-  Previoustime = currentTime;
+  TIME1_Current = TIME1.read_ms();
+  TIME1_Sample_Duration = TIME1_Current - TIME1_Previous;
+  TIME1_Previous = TIME1_Current;
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   // revolution), AND gear reduction ratio is 34, 1 encoder count== 1/(374/34)
