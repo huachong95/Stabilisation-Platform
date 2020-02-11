@@ -43,11 +43,12 @@ volatile bool JOYSTICK_Read_Flag = 0;
 float JOYSTICK_Y_Position = 0.0;
 
 // LSWITCH Variables
-bool LSWITCH_Flag = 0;
+volatile bool LSWITCH_Flag = 0;
+volatile bool LSWITCH_Complete_Home = 0;
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
-float MotorSpeed = 0;
+volatile float MOTOR_Speed = 0;
 float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
 float MAX_PWM = 1.0;                 // Max of 1.0 (Full Power)
@@ -66,7 +67,7 @@ float LEADSCREW_Position = 0.0;
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
 void SERIAL_Print();
-void SetSpeed(int MotorSpeed);
+void SetSpeed(int MOTOR_Speed);
 void ENCODER_Check();
 void ENCODER_Event();
 void JOYSTICK_Read();
@@ -99,7 +100,7 @@ int main() {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
       //            char* payload = strtok(SERIAL_RXDataBuffer, ",");
-      //            MotorSpeed=atoi(payload);
+      //            MOTOR_Speed=atoi(payload);
       switch (SERIAL_RXDataBuffer[0]) {
       case '?': {
         /*
@@ -111,7 +112,7 @@ int main() {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
         char *footer = strtok(NULL, ",");                // Expects: '\r'
-        MotorSpeed = atoi(payload);
+        MOTOR_Speed = atoi(payload);
         break;
       }
       case 'J': {
@@ -135,7 +136,7 @@ int main() {
       }
     }
     if (MOTOR_Write_Flag) {
-      SetSpeed(MotorSpeed);
+      SetSpeed(MOTOR_Speed);
       MOTOR_Write_Flag = 0;
     }
 
@@ -163,7 +164,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  PC.printf("%f %f \n", TIME1_Current, MotorSpeed);
+  PC.printf("%f %f \n", TIME1_Current, MOTOR_Speed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev,
   //   ENCODER_Count);
@@ -171,15 +172,15 @@ void SERIAL_Print() {
   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
 }
 
-void SetSpeed(int MotorSpeed) {
-  if (MotorSpeed >= 0) {
+void SetSpeed(int MOTOR_Speed) {
+  if (MOTOR_Speed >= 0) {
     R_EN = 1; // Enable motor to spin rightwards
     L_EN = 1; // Disable motor to spin leftwards
-    //        R_PWMSpeed=map(abs(MotorSpeed),0,100,0,1.0);
+    //        R_PWMSpeed=map(abs(MOTOR_Speed),0,100,0,1.0);
     //        R_PWM.write(R_PWMSpeed);
     //        L_PWMSpeed=0;
     //        L_PWM.write(L_PWMSpeed);
-    L_PWMSpeed = map(abs(MotorSpeed), 0, 100, 0, MAX_PWM);
+    L_PWMSpeed = map(abs(MOTOR_Speed), 0, 100, 0, MAX_PWM);
     L_PWM.write(L_PWMSpeed);
     R_PWMSpeed = 0;
     R_PWM.write(R_PWMSpeed);
@@ -187,7 +188,7 @@ void SetSpeed(int MotorSpeed) {
     L_EN = 1; // Enable motor to spin leftwards
     R_EN = 1; // Disable motor to spin rightwards
 
-    R_PWMSpeed = map(abs(MotorSpeed), 0, 100, 0, MAX_PWM);
+    R_PWMSpeed = map(abs(MOTOR_Speed), 0, 100, 0, MAX_PWM);
     R_PWM.write(R_PWMSpeed);
     L_PWMSpeed = 0;
     L_PWM.write(L_PWMSpeed);
@@ -198,13 +199,12 @@ void JOYSTICK_Read() {
   // float Xpos=1-XJoystick.read(); //inverts the horizontal joystick position
   JOYSTICK_Y_Position =
       1 - JOYSTICK_Y.read(); // inverts the vertical Joystick position
-  MotorSpeed = map(JOYSTICK_Y_Position, 0.0, 1.0, -100,
-                   100); // maps X position to pwm of motor
+  MOTOR_Speed = map(JOYSTICK_Y_Position, 0.0, 1.0, -100,
+                    100); // maps X position to pwm of motor
 }
 
 float map(float in, float inMin, float inMax, float outMin,
-          float outMax) // use to map Joystick readings
-{
+          float outMax) { // Function to scale the inputs to desired outputs
   // check it's within the range
   if (inMin < inMax) {
     if (in <= inMin)
@@ -255,7 +255,6 @@ void ENCODER_Check() {
 }
 
 void LSWITCH_Home() {
-  bool LSWITCH_Complete_Home = 0;
   while (LSWITCH_Complete_Home == 0) {
     while (LSWITCH_Flag == 0) {
       SetSpeed(45); // Lift platform to hit LSWTICH
@@ -286,5 +285,11 @@ void LSWITCH_Home() {
 void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
 void LSWITCH_Rise_ISR() { LSWITCH_Flag = 0; } // LSWITCH is released
-void LSWITCH_Fall_ISR() { LSWITCH_Flag = 1; } // LSWITCH is being pressed
+void LSWITCH_Fall_ISR() {
+  LSWITCH_Flag = 1;
+  if (LSWITCH_Complete_Home) {
+    MOTOR_Speed = 0; // Hardware failsafe, stops motor immediately if it crashes
+                     // into LSWITCH
+  }
+} // LSWITCH is being pressed
 void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
