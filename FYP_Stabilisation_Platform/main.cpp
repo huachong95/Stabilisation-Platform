@@ -114,7 +114,7 @@ int main() {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
         char *footer = strtok(NULL, ",");                // Expects: '\r'
-        MOTOR_Speed = atoi(payload);
+        MOTOR_Speed = -atoi(payload);
         break;
       }
       case 'J': {
@@ -230,15 +230,15 @@ float map(float in, float inMin, float inMax, float outMin,
 void ENCODER_Event() {
   if ((RH_ENCODER_A) == 1) {
     if ((RH_ENCODER_B) == 0) {
-      ENCODER_Count++;
-    } else {
       ENCODER_Count--;
+    } else {
+      ENCODER_Count++;
     }
   } else {
     if ((RH_ENCODER_B) == 0) {
-      ENCODER_Count--;
-    } else {
       ENCODER_Count++;
+    } else {
+      ENCODER_Count--;
     }
   }
 }
