@@ -6,7 +6,7 @@
 #define L_SWITCH_PIN D12
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
-#define ENCODER_INTERVAL 0.1       // Encoder read interval
+#define ENCODER_INTERVAL 0.01      // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_Lead 8           // Lead in mm
 #define ENCODER_CPR 12             // Encoder Pulses per revolution
@@ -53,8 +53,8 @@ volatile bool MOTOR_Write_Flag = 0;
 volatile float MOTOR_Speed = 0;
 float L_PWMSpeed = 0.0;
 float R_PWMSpeed = 0.0;
-float MAX_PWM = 1.0;                 // Max of 1.0 (Full Power)
-volatile long int ENCODER_Count = 0; // encoder ticks counter used in ISR
+float MAX_PWM = 1.0;            // Max of 1.0 (Full Power)
+volatile int ENCODER_Count = 0; // encoder ticks counter used in ISR
 float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
 float TIME1_Sample_Duration = 0.0;
@@ -172,8 +172,8 @@ void SERIAL_Print() {
   //   ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-  PC.printf("Time: %f  Leadscrew Position: %f Encoder Counts: %li \n\r",
-            TIME1_Current, LEADSCREW_Position, ENCODER_Count);
+  //   PC.printf("Time: %f  Leadscrew Position: %f Encoder Counts: %li \n\r",
+  //             TIME1_Current, LEADSCREW_Position, ENCODER_Count);
 }
 
 void SetSpeed(int MOTOR_Speed) {
