@@ -8,9 +8,12 @@
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
 #define ENCODER_INTERVAL 0.01      // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
-#define LEADSCREW_Lead 8           // Lead in mm
-#define ENCODER_CPR 12             // Encoder Pulses per revolution
+#define LEADSCREW_LEAD 8           // Lead in mm
+#define LEADSCREW_MAX_RANGE 330
+#define ENCODER_CPR 12         // Encoder Pulses per revolution
+#define PID_POSITION_RATE 0.01 // Sample Rate of PID_Position
 
+#include "PID.h"
 #include "mbed.h"
 #include <cstdio>
 #include <iostream>
@@ -26,6 +29,7 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 
+PID PID_Position(3.0, 0.0, 0.0, PID_POSITION_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
@@ -80,6 +84,7 @@ void JOYSTICK_ISR_Read();
 void SERIAL_Print_ISR();
 void LSWITCH_Rise_ISR();
 void LSWITCH_Fall_ISR();
+void PID_Position_Initialisation();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
@@ -95,6 +100,7 @@ int main() {
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
   LSWITCH_Home();
+  PID_Position_Initialisation();
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, 1);
 
   while (1) {
@@ -138,7 +144,13 @@ int main() {
       }
     }
     if (MOTOR_Write_Flag) {
-      SetSpeed(MOTOR_Speed);
+      PID_Position.setSetPoint(150);
+      PID_Position.setProcessValue(LEADSCREW_Position);
+      float MOTOR_Speed = -PID_Position.compute();
+    //   MOTOR_Speed = map(temp, -100, 100, 100, -100);
+      PC.printf("ProcessValue: %f MOTOR_Speed: %f \n\r",
+                LEADSCREW_Position,  MOTOR_Speed);
+        SetSpeed(MOTOR_Speed);
       MOTOR_Write_Flag = 0;
     }
 
@@ -256,7 +268,7 @@ void ENCODER_Check() {
   //    ENCODER_Speed = ENCODER_Wheel_Rev * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_Wheel_Rev;
   ENCODER_Old_Count = ENCODER_Count;
-  LEADSCREW_Position = (float)LEADSCREW_Lead / ENCODER_CPR * ENCODER_Count;
+  LEADSCREW_Position = (float)LEADSCREW_LEAD / ENCODER_CPR * ENCODER_Count;
 }
 
 void LSWITCH_Home() {
@@ -285,6 +297,12 @@ void LSWITCH_Home() {
     ENCODER_Count = 0;      // Resets Encoder position
     LSWITCH_Complete_Home = 1;
   }
+}
+
+void PID_Position_Initialisation() {
+  PID_Position.setInputLimits(0, LEADSCREW_MAX_RANGE);
+  PID_Position.setOutputLimits(-100, 100);
+  PID_Position.setMode(AUTO_MODE);
 }
 
 // ISR Functions
