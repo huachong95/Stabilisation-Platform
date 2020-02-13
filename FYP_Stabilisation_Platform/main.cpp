@@ -7,9 +7,9 @@
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
 #define ENCODER_INTERVAL 0.1       // Encoder read interval
-#define LSWITCH_SLEEP_DURATION 400 // Minimum cycle switch duration required
+#define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_Lead 8           // Lead in mm
-#define ENCODER_PPR 12             // Encoder Pulses per revolution
+#define ENCODER_CPR 12             // Encoder Pulses per revolution
 
 #include "mbed.h"
 #include <cstdio>
@@ -166,13 +166,14 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-//   PC.printf("%f %f \n", TIME1_Current, MOTOR_Speed);
+  //   PC.printf("%f %f \n", TIME1_Current, MOTOR_Speed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev,
   //   ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
-//   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-PC.printf("Time: %f  Leadscrew Position: %f Encoder Counts: %li \n\r", TIME1_Current, LEADSCREW_Position, ENCODER_Count);
+  //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
+  PC.printf("Time: %f  Leadscrew Position: %f Encoder Counts: %li \n\r",
+            TIME1_Current, LEADSCREW_Position, ENCODER_Count);
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -251,11 +252,11 @@ void ENCODER_Check() {
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
   ENCODER_Wheel_Rev =
-      ENCODER_Change / (ENCODER_PPR * ENCODER_INTERVAL) * 60; // right wheel RPM
+      ENCODER_Change / (ENCODER_CPR * ENCODER_INTERVAL) * 60; // right wheel RPM
   //    ENCODER_Speed = ENCODER_Wheel_Rev * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_Wheel_Rev;
   ENCODER_Old_Count = ENCODER_Count;
-  LEADSCREW_Position =(float) LEADSCREW_Lead /ENCODER_PPR*ENCODER_Count;
+  LEADSCREW_Position = (float)LEADSCREW_Lead / ENCODER_CPR * ENCODER_Count;
 }
 
 void LSWITCH_Home() {
