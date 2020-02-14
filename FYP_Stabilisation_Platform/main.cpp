@@ -30,7 +30,7 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 
-PID PID_Position(60, 5.0, 0.001, PID_POSITION_RATE);
+PID PID_Position(20, 1.0, 0.0, PID_POSITION_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
@@ -156,6 +156,13 @@ int main() {
       }
     }
     if (MOTOR_Write_Flag) {
+        //Imposing limits to leadscrew demanded position
+        if(DEMANDED_Position>LEADSCREW_MAX_RANGE){
+            DEMANDED_Position=LEADSCREW_MAX_RANGE;
+        }
+        if (DEMANDED_Position<0){
+            DEMANDED_Position=0;
+        }
       PID_Position.setSetPoint(DEMANDED_Position);
       PID_Position.setProcessValue(LEADSCREW_Position);
       float MOTOR_Speed = -PID_Position.compute();
@@ -194,7 +201,7 @@ void SERIAL_Print() {
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
     // PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r", TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
-PC.printf("%f %f %f %f \n\r",TIME1_Current,DEMANDED_Position,LEADSCREW_Position,ENCODER_RPM);
+PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position: %f EncoderCounts:%i \n\r",TIME1_Current,DEMANDED_Position,LEADSCREW_Position,ENCODER_Count);
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -283,22 +290,22 @@ void ENCODER_Check() {
 void LSWITCH_Home() {
   while (LSWITCH_Complete_Home == 0) {
     while (LSWITCH_Flag == 0) {
-      SetSpeed(50); // Lift platform to hit LSWTICH
+      SetSpeed(40); // Lift platform to hit LSWTICH
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
-      SetSpeed(-40); // Lower platform to release LSWITCH
+      SetSpeed(-35); // Lower platform to release LSWITCH
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 0) {
-      SetSpeed(50); // Lift platform to hit LSWTICH at slower speed
+      SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
-      SetSpeed(-45); // Lower platform to hit LSWTICH at slower speed
+      SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
