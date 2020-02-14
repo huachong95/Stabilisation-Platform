@@ -12,6 +12,7 @@
 #define LEADSCREW_MAX_RANGE 330
 #define ENCODER_CPR 12         // Encoder Pulses per revolution
 #define PID_POSITION_RATE 0.01 // Sample Rate of PID_Position
+#define SERIAL_PRINT_INTERVAL 0.01 
 
 #include "PID.h"
 #include "mbed.h"
@@ -29,7 +30,7 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 
-PID PID_Position(3.0, 0.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(60, 5.0, 0.001, PID_POSITION_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
@@ -62,13 +63,14 @@ volatile int ENCODER_Count = 0; // encoder ticks counter used in ISR
 float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
 float TIME1_Sample_Duration = 0.0;
-float ENCODER_Wheel_Rev = 0.0;
+float ENCODER_RPM = 0.0;
 float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
+float DEMANDED_Position=0.0;
 
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
@@ -101,7 +103,7 @@ int main() {
   TIME1.start(); // Startsthe TIME1 timer
   LSWITCH_Home();
   PID_Position_Initialisation();
-  SERIAL_PRINT.attach(&SERIAL_Print_ISR, 1);
+  SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
     if (SERIAL_Read_Flag) {
@@ -123,6 +125,16 @@ int main() {
         MOTOR_Speed = -atoi(payload);
         break;
       }
+
+           case 'P': {
+//Expects "P,150,\r"
+        char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
+        char *payload = strtok(NULL, ",");               // Expects:<payload>
+        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        DEMANDED_Position = atoi(payload);
+        break;
+      }
+
       case 'J': {
         JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005);
         break;
@@ -144,12 +156,9 @@ int main() {
       }
     }
     if (MOTOR_Write_Flag) {
-      PID_Position.setSetPoint(150);
+      PID_Position.setSetPoint(DEMANDED_Position);
       PID_Position.setProcessValue(LEADSCREW_Position);
       float MOTOR_Speed = -PID_Position.compute();
-    //   MOTOR_Speed = map(temp, -100, 100, 100, -100);
-      PC.printf("ProcessValue: %f MOTOR_Speed: %f \n\r",
-                LEADSCREW_Position,  MOTOR_Speed);
         SetSpeed(MOTOR_Speed);
       MOTOR_Write_Flag = 0;
     }
@@ -180,12 +189,12 @@ void SERIAL_Read() {
 void SERIAL_Print() {
   //   PC.printf("%f %f \n", TIME1_Current, MOTOR_Speed);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
-  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_Wheel_Rev,
+  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
   //   ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-  //   PC.printf("Time: %f  Leadscrew Position: %f Encoder Counts: %li \n\r",
-  //             TIME1_Current, LEADSCREW_Position, ENCODER_Count);
+    // PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r", TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
+PC.printf("%f %f %f %f \n\r",TIME1_Current,DEMANDED_Position,LEADSCREW_Position,ENCODER_RPM);
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -263,10 +272,10 @@ void ENCODER_Check() {
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
-  ENCODER_Wheel_Rev =
+  ENCODER_RPM =
       ENCODER_Change / (ENCODER_CPR * ENCODER_INTERVAL) * 60; // right wheel RPM
-  //    ENCODER_Speed = ENCODER_Wheel_Rev * 2 * 3.1415 * 0.05; //velocity=r*w
-  //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_Wheel_Rev;
+  //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
+  //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
   ENCODER_Old_Count = ENCODER_Count;
   LEADSCREW_Position = (float)LEADSCREW_LEAD / ENCODER_CPR * ENCODER_Count;
 }
@@ -289,7 +298,7 @@ void LSWITCH_Home() {
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
-      SetSpeed(-40); // Lower platform to hit LSWTICH at slower speed
+      SetSpeed(-45); // Lower platform to hit LSWTICH at slower speed
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
