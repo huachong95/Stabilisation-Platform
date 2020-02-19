@@ -58,8 +58,9 @@ volatile bool LSWITCH_Flag = 0;
 volatile bool LSWITCH_Complete_Home = 0;
 
 // CURRENT_Sensor Variables
-volatile float CURRENT_Sensor_ADC_Reading = 0.5;
-volatile float MOTOR_Current = 0.0;
+volatile bool CURRENT_Sensor_Flag = 0;
+float CURRENT_Sensor_ADC_Reading = 0.5;
+float MOTOR_Current = 0.0;
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
@@ -90,6 +91,7 @@ void ENCODER_Check();
 void ENCODER_Event();
 void JOYSTICK_Read();
 void LSWITCH_Home();
+void CURRENT_Sensor_Read();
 float map(float in, float inMin, float inMax, float outMin, float outMax);
 void MOTOR_ISR_Write();
 void JOYSTICK_ISR_Read();
@@ -114,7 +116,7 @@ int main() {
   TIME1.start(); // Startsthe TIME1 timer
   LSWITCH_Home();
   CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, CURRENT_SENSOR_INTERVAL);
-//   PID_Position_Initialisation();
+  //   PID_Position_Initialisation();
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -195,6 +197,10 @@ int main() {
       SERIAL_Print();
       SERIAL_Print_Flag = 0;
     }
+    if (CURRENT_Sensor_Flag) {
+      CURRENT_Sensor_Read();
+      CURRENT_Sensor_Flag = 0;
+    }
   }
 }
 
@@ -219,10 +225,13 @@ void SERIAL_Print() {
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
   // PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
   // TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
-  PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position: %f "
-            "EncoderCounts:%i \n\r",
-            TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
-            ENCODER_Count);
+  //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position: %f
+  //   "
+  //             "EncoderCounts:%i \n\r",
+  //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
+  //             ENCODER_Count);
+  PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
+            MOTOR_Current);
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -336,6 +345,11 @@ void LSWITCH_Home() {
   }
 }
 
+void CURRENT_Sensor_Read() {
+  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read();
+  MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -25, 25);
+}
+
 void PID_Position_Initialisation() {
   PID_Position.setInputLimits(0, LEADSCREW_MAX_RANGE);
   PID_Position.setOutputLimits(-100, 100);
@@ -355,7 +369,4 @@ void LSWITCH_Fall_ISR() {
   }
 } // LSWITCH is being pressed
 void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
-void CURRENT_SENSOR_ISR_Read() {
-//   CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read();
-//   MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -25, -25);
-}
+void CURRENT_SENSOR_ISR_Read() { CURRENT_Sensor_Flag = 1; }
