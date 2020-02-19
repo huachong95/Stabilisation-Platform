@@ -30,7 +30,7 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 
-PID PID_Position(20, 1.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
