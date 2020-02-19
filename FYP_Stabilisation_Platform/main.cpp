@@ -3,10 +3,10 @@
 #define L_PWM_PIN D6
 #define R_PWM_PIN D9
 #define JOYSTICK_PIN A0
-#define L_SWITCH_PIN D13
+#define L_SWITCH_PIN D12
 #define RH_ENCODER_A_PIN D3  // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2  // right motor encoder B interrupt pin
-#define ENCODER_INTERVAL 1 // Encoder read interval
+#define ENCODER_INTERVAL 3 // Encoder read interval
 
 #include "mbed.h"
 #include <cstdio>
@@ -238,7 +238,7 @@ void EncoderCheck() {
 
   // since encoder feedback resolution is 17 for 1 revolution
   rightchange = rightCount - oldrightCount;
-  rightWheelRev = rightchange / (17 * ENCODER_INTERVAL) * 60; // right wheel RPM
+  rightWheelRev = rightchange / (12 * ENCODER_INTERVAL) * 60; // right wheel RPM
   //    rightEncoderSpeed = rightWheelRev * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) rightEncoderSpeed=60*rightWheelRev;
   oldrightCount = rightCount;
