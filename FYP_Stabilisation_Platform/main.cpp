@@ -61,7 +61,10 @@ volatile bool LSWITCH_Complete_Home = 0;
 volatile bool CURRENT_Sensor_Flag = 0;
 float CURRENT_Sensor_ADC_Reading = 0.5;
 float MOTOR_Current = 0.0;
+float MOTOR_Current_Raw=0.0;
 float CURRENT_Offset=0.0;
+const float CURRENT_Filter_Alpha=0.2;
+double CURRENT_Filter_Data[]={0,0};
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
@@ -220,7 +223,8 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-    PC.printf("%f %f \n\r", TIME1_Current, MOTOR_Current);
+    PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current, MOTOR_Current_Raw);
+    // PC.printf("AnalogIn: %f %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
   //   ENCODER_Count);
@@ -353,12 +357,16 @@ float CURRENT_Sensor_Offset(){
     for(int counter=0;counter<300;counter++){
            ADC_Accumulated_Readings += CURRENT_Sensor.read();
     }
-    float Averaged_Current_Offset=ADC_Accumulated_Readings/300;
+    float Averaged_Current_Offset=0.5-(ADC_Accumulated_Readings/300);
     return Averaged_Current_Offset;
 }
 void CURRENT_Sensor_Read() {
   CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read()-CURRENT_Offset;
-  MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -25, 25);
+  MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -25, 25);
+  CURRENT_Filter_Data[1]=CURRENT_Filter_Alpha*MOTOR_Current_Raw+(1-CURRENT_Filter_Alpha)*CURRENT_Filter_Data[0];
+  CURRENT_Filter_Data[0]=CURRENT_Filter_Data[1];
+  MOTOR_Current=CURRENT_Filter_Data[1];
+// MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -16.67,16.67);
 }
 
 void PID_Position_Initialisation() {
