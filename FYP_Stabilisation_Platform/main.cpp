@@ -61,6 +61,7 @@ volatile bool LSWITCH_Complete_Home = 0;
 volatile bool CURRENT_Sensor_Flag = 0;
 float CURRENT_Sensor_ADC_Reading = 0.5;
 float MOTOR_Current = 0.0;
+float CURRENT_Offset=0.0;
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
@@ -92,6 +93,7 @@ void ENCODER_Event();
 void JOYSTICK_Read();
 void LSWITCH_Home();
 void CURRENT_Sensor_Read();
+float CURRENT_Sensor_Offset();
 float map(float in, float inMin, float inMax, float outMin, float outMax);
 void MOTOR_ISR_Write();
 void JOYSTICK_ISR_Read();
@@ -116,6 +118,7 @@ int main() {
   TIME1.start(); // Startsthe TIME1 timer
   LSWITCH_Home();
   CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, CURRENT_SENSOR_INTERVAL);
+  CURRENT_Offset=CURRENT_Sensor_Offset(); //obtains the zero-offset current
   //   PID_Position_Initialisation();
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
@@ -345,8 +348,16 @@ void LSWITCH_Home() {
   }
 }
 
+float CURRENT_Sensor_Offset(){
+    float ADC_Accumulated_Readings=0;
+    for(int counter=0;counter<300;counter++){
+           ADC_Accumulated_Readings += CURRENT_Sensor.read();
+    }
+    float Averaged_Current_Offset=ADC_Accumulated_Readings/300;
+    return Averaged_Current_Offset;
+}
 void CURRENT_Sensor_Read() {
-  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read();
+  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read()-CURRENT_Offset;
   MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -25, 25);
 }
 
