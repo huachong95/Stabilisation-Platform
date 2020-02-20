@@ -217,7 +217,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  //   PC.printf("%f %f \n", TIME1_Current, MOTOR_Speed);
+    PC.printf("%f %f \n\r", TIME1_Current, MOTOR_Current);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
   //   ENCODER_Count);
@@ -230,8 +230,8 @@ void SERIAL_Print() {
   //             "EncoderCounts:%i \n\r",
   //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
   //             ENCODER_Count);
-  PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
-            MOTOR_Current);
+//   PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
+//             MOTOR_Current);
 }
 
 void SetSpeed(int MOTOR_Speed) {
