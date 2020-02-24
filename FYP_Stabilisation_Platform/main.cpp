@@ -14,7 +14,8 @@
 #define ENCODER_CPR 12         // Encoder Pulses per revolution
 #define PID_POSITION_RATE 0.01 // Sample Rate of PID_Position
 #define SERIAL_PRINT_INTERVAL 0.01
-#define CURRENT_SENSOR_INTERVAL 0.01
+#define PID_CURRENT_RATE 0.001 // Sample Rate of PID_Current
+#define CURRENT_MAX_RANGE 20 // Max Amps supported by Current Sensor
 
 #include "PID.h"
 #include "mbed.h"
@@ -34,6 +35,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
+PID PID_Current(50, 4.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
@@ -61,10 +63,10 @@ volatile bool LSWITCH_Complete_Home = 0;
 volatile bool CURRENT_Sensor_Flag = 0;
 float CURRENT_Sensor_ADC_Reading = 0.5;
 float MOTOR_Current = 0.0;
-float MOTOR_Current_Raw=0.0;
-float CURRENT_Offset=0.0;
-const float CURRENT_Filter_Alpha=0.15;
-double CURRENT_Filter_Data[]={0,0};
+float MOTOR_Current_Raw = 0.0;
+float CURRENT_Offset = 0.0;
+const float CURRENT_Filter_Alpha = 0.15;
+double CURRENT_Filter_Data[] = {0, 0};
 
 // MOTOR Variables
 volatile bool MOTOR_Write_Flag = 0;
@@ -82,10 +84,13 @@ int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
 bool PID_POSITION_INITIALISED = 0;
+bool PID_CURRENT_INITIALISED = 0;
 
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
 float DEMANDED_Position = 0.0;
+float DEMANDED_Current = 0.0;
+float MOTOR_Speed_PID = 0.0;
 
 // FUNCTION DECLARATIONS
 void SERIAL_Read();
@@ -105,6 +110,7 @@ void LSWITCH_Rise_ISR();
 void LSWITCH_Fall_ISR();
 void CURRENT_SENSOR_ISR_Read();
 void PID_Position_Initialisation();
+void PID_Current_Initialisation();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
@@ -120,9 +126,10 @@ int main() {
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
   LSWITCH_Home();
-  CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, CURRENT_SENSOR_INTERVAL);
-  CURRENT_Offset=CURRENT_Sensor_Offset(); //obtains the zero-offset current
+  CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
+  CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
   //   PID_Position_Initialisation();
+  PID_Current_Initialisation();
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -152,6 +159,14 @@ int main() {
         char *payload = strtok(NULL, ",");               // Expects:<payload>
         char *footer = strtok(NULL, ",");                // Expects: '\r'
         DEMANDED_Position = atoi(payload);
+        break;
+      }
+
+      case 'C': {
+        char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
+        char *payload = strtok(NULL, ",");               // Expects:<payload>
+        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        DEMANDED_Current = atoi(payload);
         break;
       }
 
@@ -186,11 +201,11 @@ int main() {
         }
         PID_Position.setSetPoint(DEMANDED_Position);
         PID_Position.setProcessValue(LEADSCREW_Position);
-        float MOTOR_Speed_PID = -PID_Position.compute();
+        // MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
         MOTOR_Write_Flag = 0;
       } else { // IF PID Position not initialised, operate normal
-        SetSpeed(MOTOR_Speed);
+        // SetSpeed(MOTOR_Speed);
         MOTOR_Write_Flag = 0;
       }
     }
@@ -206,6 +221,18 @@ int main() {
     if (CURRENT_Sensor_Flag) {
       CURRENT_Sensor_Read();
       CURRENT_Sensor_Flag = 0;
+      if (PID_CURRENT_INITIALISED) {
+        if (DEMANDED_Current > CURRENT_MAX_RANGE) {
+          DEMANDED_Current = CURRENT_MAX_RANGE;
+        }
+        if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
+          DEMANDED_Current = -CURRENT_MAX_RANGE;
+        }
+                PID_Current.setSetPoint(DEMANDED_Current);
+        PID_Current.setProcessValue(MOTOR_Current);
+        MOTOR_Speed_PID = PID_Current.compute();
+        SetSpeed(MOTOR_Speed_PID);
+      }
     }
   }
 }
@@ -223,8 +250,8 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-    PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current, MOTOR_Current_Raw);
-    // PC.printf("AnalogIn: %f %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
+//   PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current, MOTOR_Current_Raw);
+  // PC.printf("AnalogIn: %f %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
   //   ENCODER_Count);
@@ -237,8 +264,10 @@ void SERIAL_Print() {
   //             "EncoderCounts:%i \n\r",
   //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
   //             ENCODER_Count);
-//   PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
-//             MOTOR_Current);
+  //   PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
+  //             MOTOR_Current);
+    PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
+  TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -352,21 +381,22 @@ void LSWITCH_Home() {
   }
 }
 
-float CURRENT_Sensor_Offset(){
-    float ADC_Accumulated_Readings=0;
-    for(int counter=0;counter<300;counter++){
-           ADC_Accumulated_Readings += CURRENT_Sensor.read();
-    }
-    float Averaged_Current_Offset=0.5-(ADC_Accumulated_Readings/300);
-    return Averaged_Current_Offset;
+float CURRENT_Sensor_Offset() {
+  float ADC_Accumulated_Readings = 0;
+  for (int counter = 0; counter < 500; counter++) {
+    ADC_Accumulated_Readings += CURRENT_Sensor.read();
+  }
+  float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings / 500);
+  return Averaged_Current_Offset;
 }
 void CURRENT_Sensor_Read() {
-  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read()-CURRENT_Offset;
+  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() - CURRENT_Offset;
   MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -27.5, 27.5);
-  CURRENT_Filter_Data[1]=CURRENT_Filter_Alpha*MOTOR_Current_Raw+(1-CURRENT_Filter_Alpha)*CURRENT_Filter_Data[0];
-  CURRENT_Filter_Data[0]=CURRENT_Filter_Data[1];
-  MOTOR_Current=CURRENT_Filter_Data[1];
-// MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -16.67,16.67);
+  CURRENT_Filter_Data[1] = CURRENT_Filter_Alpha * MOTOR_Current_Raw +
+                           (1 - CURRENT_Filter_Alpha) * CURRENT_Filter_Data[0];
+  CURRENT_Filter_Data[0] = CURRENT_Filter_Data[1];
+  MOTOR_Current = CURRENT_Filter_Data[1];
+  // MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -16.67,16.67);
 }
 
 void PID_Position_Initialisation() {
@@ -376,6 +406,12 @@ void PID_Position_Initialisation() {
   PID_POSITION_INITIALISED = 1;
 }
 
+void PID_Current_Initialisation() {
+  PID_Current.setInputLimits(-CURRENT_MAX_RANGE, CURRENT_MAX_RANGE);
+  PID_Current.setOutputLimits(-100, 100);
+  PID_Current.setMode(AUTO_MODE);
+  PID_CURRENT_INITIALISED = 1;
+}
 // ISR Functions
 void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }

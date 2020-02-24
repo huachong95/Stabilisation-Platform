@@ -213,7 +213,7 @@ float PID::compute() {
 
     //Check and see if the output is pegged at a limit and only
     //integrate if it is not. This is to prevent reset-windup.
-    if (!(prevControllerOutput_ >= 1 && error > 0) && !(prevControllerOutput_ <= 0 && error < 0)) {
+    if (!(prevControllerOutput_ >= 1 && error > 0) && !(prevControllerOutput_ <= 1.0 && error < 0)) {
         accError_ += error;
     }
  
