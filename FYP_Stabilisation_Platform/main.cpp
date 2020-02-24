@@ -63,7 +63,7 @@ float CURRENT_Sensor_ADC_Reading = 0.5;
 float MOTOR_Current = 0.0;
 float MOTOR_Current_Raw=0.0;
 float CURRENT_Offset=0.0;
-const float CURRENT_Filter_Alpha=0.2;
+const float CURRENT_Filter_Alpha=0.15;
 double CURRENT_Filter_Data[]={0,0};
 
 // MOTOR Variables
@@ -362,7 +362,7 @@ float CURRENT_Sensor_Offset(){
 }
 void CURRENT_Sensor_Read() {
   CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read()-CURRENT_Offset;
-  MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -25, 25);
+  MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -27.5, 27.5);
   CURRENT_Filter_Data[1]=CURRENT_Filter_Alpha*MOTOR_Current_Raw+(1-CURRENT_Filter_Alpha)*CURRENT_Filter_Data[0];
   CURRENT_Filter_Data[0]=CURRENT_Filter_Data[1];
   MOTOR_Current=CURRENT_Filter_Data[1];
