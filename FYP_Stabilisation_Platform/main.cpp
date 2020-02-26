@@ -166,7 +166,7 @@ int main() {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
         char *footer = strtok(NULL, ",");                // Expects: '\r'
-        DEMANDED_Current = atoi(payload);
+        DEMANDED_Current = (float)(atoi(payload))/100;
         break;
       }
 
