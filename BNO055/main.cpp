@@ -1,71 +1,58 @@
-#define SERIAL_PRINT_INTERVAL 0.01
+/* mbed Microcontroller Library
+ * Copyright (c) 2019 ARM Limited
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
+#include "BNO055.h"
 #include "mbed.h"
-#include <cstdio>
-#include <iostream>
+#include "platform/mbed_thread.h"
 
+// Blinking rate in milliseconds
+#define BLINKING_RATE_MS 500
 RawSerial PC(USBTX, USBRX, 115200); // tx, rx for CoolTerm output
 DigitalOut led(LED1);
+BNO055 imu1(D14, D15);
 
-
-Ticker SERIAL_PRINT;
-Timer TIME1;
-
-// VARIABLE INSTANTIATION
-// SERIAL Variables
-char SERIAL_RXDataBuffer[128];       // Serial buffer for incoming serial data
-volatile char SERIAL_RX_Counter = 0; // Serial counter used in seral buffer
-volatile bool SERIAL_Read_Flag =
-    0; // ISR Flag indicating serial input was received
-volatile bool SERIAL_Print_Flag = 0;
-
-
-
-// FUNCTION DECLARATIONS
-void SERIAL_Read();
-void SERIAL_Print();
-void SERIAL_Print_ISR();
-float map(float in, float inMin, float inMax, float outMin,
-          float outMax) ;
-
+float map(float in, float inMin, float inMax, float outMin, float outMax);
 
 int main() {
-  PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
-                           //   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
-  
-  TIME1.start(); // Startsthe TIME1 timer
-    SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
-
-  while (1) {
-    if (SERIAL_Read_Flag) {
-      SERIAL_Read_Flag = 0;  // Clears the serial_read flag
-      SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
-      //            char* payload = strtok(SERIAL_RXDataBuffer, ",");
-      //            MOTOR_Speed=atoi(payload);
-    //   switch (SERIAL_RXDataBuffer[0]) {
-
-    //    }
+  PC.baud(115200);
+  PC.printf("BNO055 Hello World\r\n\r\n");
+  led = 1;
+  // Reset the BNO055
+  imu1.reset();
+  // Check that the BNO055 is connected and flash LED if not
+  if (!imu1.check())
+    while (true) {
+      PC.printf("Waiting for IMU Connection \n\r");
+      thread_sleep_for(100);
     }
-  
+  // Display sensor information
+  PC.printf("BNO055 found\r\n\r\n");
+  PC.printf("Chip          ID: %0d\r\n", imu1.ID.id);
+  PC.printf("Accelerometer ID: %0d\r\n", imu1.ID.accel);
+  PC.printf("Gyroscope     ID: %0d\r\n", imu1.ID.gyro);
+  PC.printf("Magnetometer  ID: %0d\r\n\r\n", imu1.ID.mag);
+  PC.printf("Firmware version v%d.%0d\r\n", imu1.ID.sw[0], imu1.ID.sw[1]);
+  PC.printf("Bootloader version v%d\r\n\r\n", imu1.ID.bootload);
+  // Display chip serial number
+  for (int i = 0; i < 4; i++) {
+    PC.printf("%0d.%0d.%0d.%0d\r\n", imu1.ID.serial[i * 4],
+              imu1.ID.serial[i * 4 + 1], imu1.ID.serial[i * 4 + 2],
+              imu1.ID.serial[i * 4 + 3]);
+  }
+  PC.printf("\r\n");
+  while (true) {
+    imu1.setmode(OPERATION_MODE_NDOF);
+    // imu1.get_calib();
+    // imu1.get_angles();
+    imu1.get_lia();
+PC.printf("X: %5.2f, Y: %5.2f Z: %5.2f \n\r",imu1.lia.x,imu1.lia.y,imu1.lia.z);
+    // PC.printf("%0d %5.1f %5.1f %5.1f\r\n", imu1.calib, imu1.euler.roll,
+    //           imu1.euler.pitch, imu1.euler.yaw);
+    // thread_sleep_for(100);
   }
 }
-
-void SERIAL_Read() {
-  SERIAL_RXDataBuffer[SERIAL_RX_Counter] =
-      PC.getc(); // Gets every new character and stores it in the RX serial
-                 // buffer
-  SERIAL_RX_Counter++; // Increments RX counter upon each byte storage
-  if (SERIAL_RXDataBuffer[SERIAL_RX_Counter - 1] ==
-      0x0D) { // Since /r = ENTER on keyboard = 0x0D(terminating byte in serial
-    // commands), Serial_Read Flag is activated upon detection of 0x0D,
-    // indicating data ready to be read
-    SERIAL_Read_Flag = 1;
-  }
-}
-void SERIAL_Print() {
-}
-
-
 
 float map(float in, float inMin, float inMax, float outMin,
           float outMax) { // Function to scale the inputs to desired outputs
@@ -86,6 +73,3 @@ float map(float in, float inMin, float inMax, float outMin,
   // calculate the output.
   return outMin + scale * (outMax - outMin);
 }
-
-
-void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
