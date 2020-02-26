@@ -14,7 +14,7 @@
 #define ENCODER_CPR 12         // Encoder Pulses per revolution
 #define PID_POSITION_RATE 0.01 // Sample Rate of PID_Position
 #define SERIAL_PRINT_INTERVAL 0.01
-#define PID_CURRENT_RATE 0.001 // Sample Rate of PID_Current
+#define PID_CURRENT_RATE 0.0005 // Sample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20 // Max Amps supported by Current Sensor
 
 #include "PID.h"
@@ -35,7 +35,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
-PID PID_Current(50, 4.0, 0, PID_CURRENT_RATE);
+PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
 Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
