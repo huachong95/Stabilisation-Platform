@@ -29,6 +29,7 @@ DigitalOut L_EN(L_EN_PIN);
 DigitalOut R_EN(R_EN_PIN);
 PwmOut L_PWM(L_PWM_PIN);
 PwmOut R_PWM(R_PWM_PIN);
+DigitalOut osc(D5);
 InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
@@ -219,6 +220,7 @@ int main() {
       SERIAL_Print_Flag = 0;
     }
     if (CURRENT_Sensor_Flag) {
+        osc=1;
       CURRENT_Sensor_Read();
       CURRENT_Sensor_Flag = 0;
       if (PID_CURRENT_INITIALISED) {
@@ -232,6 +234,7 @@ int main() {
         PID_Current.setProcessValue(MOTOR_Current);
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
+        osc=0;
       }
     }
   }
