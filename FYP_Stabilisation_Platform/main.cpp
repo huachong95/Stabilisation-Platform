@@ -32,14 +32,14 @@ PwmOut R_PWM(R_PWM_PIN);
 DigitalOut osc(D5);
 InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
-AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
+// AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
-Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
+// Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
 Ticker EncoderCheckISR; // Ticker interrupt for Encoder ISR
 Ticker CURRENT_Sensor_ISR;
 Timer TIME1;
@@ -99,13 +99,13 @@ void SERIAL_Print();
 void SetSpeed(int MOTOR_Speed);
 void ENCODER_Check();
 void ENCODER_Event();
-void JOYSTICK_Read();
+// void JOYSTICK_Read();
 void LSWITCH_Home();
 void CURRENT_Sensor_Read();
 float CURRENT_Sensor_Offset();
 float map(float in, float inMin, float inMax, float outMin, float outMax);
 void MOTOR_ISR_Write();
-void JOYSTICK_ISR_Read();
+// void JOYSTICK_ISR_Read();
 void SERIAL_Print_ISR();
 void LSWITCH_Rise_ISR();
 void LSWITCH_Fall_ISR();
@@ -134,6 +134,7 @@ int main() {
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
+      osc=1;
     if (SERIAL_Read_Flag) {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
@@ -171,16 +172,16 @@ int main() {
         break;
       }
 
-      case 'J': {
-        JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005);
-        break;
-      }
+    //   case 'J': {
+    //     JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005);
+    //     break;
+    //   }
 
-      case 'S': {
-        JOYSTICK_ISR
-            .detach(); // Detach Interrupt for reading of Joystick position
-        break;
-      }
+    //   case 'S': {
+    //     JOYSTICK_ISR
+    //         .detach(); // Detach Interrupt for reading of Joystick position
+    //     break;
+    //   }
 
       case 'M': {
         MAX_PWM = (float)(100 * (SERIAL_RXDataBuffer[1] - '0') +
@@ -211,17 +212,16 @@ int main() {
       }
     }
 
-    if (JOYSTICK_Read_Flag) {
-      JOYSTICK_Read();
-      JOYSTICK_Read_Flag = 0;
-    }
+    // if (JOYSTICK_Read_Flag) {
+    //   JOYSTICK_Read();
+    //   JOYSTICK_Read_Flag = 0;
+    // }
     if (SERIAL_Print_Flag) {
       SERIAL_Print();
       SERIAL_Print_Flag = 0;
     }
     if (CURRENT_Sensor_Flag) {
-        osc=1;
-      CURRENT_Sensor_Read();
+         CURRENT_Sensor_Read();
       CURRENT_Sensor_Flag = 0;
       if (PID_CURRENT_INITIALISED) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
@@ -234,9 +234,9 @@ int main() {
         PID_Current.setProcessValue(MOTOR_Current);
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
-        osc=0;
       }
     }
+    osc=0;
   }
 }
 
@@ -253,7 +253,7 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-//   PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current, MOTOR_Current_Raw);
+  PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current, MOTOR_Current_Raw);
   // PC.printf("AnalogIn: %f %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
   //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
@@ -269,8 +269,8 @@ void SERIAL_Print() {
   //             ENCODER_Count);
   //   PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
   //             MOTOR_Current);
-    PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
-  TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
+//     PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
+//   TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -293,16 +293,16 @@ void SetSpeed(int MOTOR_Speed) {
     R_PWM.write(R_PWMSpeed);
     L_PWMSpeed = 0;
     L_PWM.write(L_PWMSpeed);
-  }
+      }
 }
 
-void JOYSTICK_Read() {
-  // float Xpos=1-XJoystick.read(); //inverts the horizontal joystick position
-  JOYSTICK_Y_Position =
-      1 - JOYSTICK_Y.read(); // inverts the vertical Joystick position
-  MOTOR_Speed = map(JOYSTICK_Y_Position, 0.0, 1.0, -100,
-                    100); // maps X position to pwm of motor
-}
+// void JOYSTICK_Read() {
+//   // float Xpos=1-XJoystick.read(); //inverts the horizontal joystick position
+//   JOYSTICK_Y_Position =
+//       1 - JOYSTICK_Y.read(); // inverts the vertical Joystick position
+//   MOTOR_Speed = map(JOYSTICK_Y_Position, 0.0, 1.0, -100,
+//                     100); // maps X position to pwm of motor
+// }
 
 float map(float in, float inMin, float inMax, float outMin,
           float outMax) { // Function to scale the inputs to desired outputs
@@ -416,7 +416,7 @@ void PID_Current_Initialisation() {
   PID_CURRENT_INITIALISED = 1;
 }
 // ISR Functions
-void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
+// void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
 void LSWITCH_Rise_ISR() { LSWITCH_Flag = 0; } // LSWITCH is released
 void LSWITCH_Fall_ISR() {
