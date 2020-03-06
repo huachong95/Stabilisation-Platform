@@ -128,8 +128,8 @@ int main() {
   LSWITCH_Home();
   CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
-  //   PID_Position_Initialisation();
-  PID_Current_Initialisation();
+    // PID_Position_Initialisation();
+//   PID_Current_Initialisation();
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -201,7 +201,7 @@ int main() {
         }
         PID_Position.setSetPoint(DEMANDED_Position);
         PID_Position.setProcessValue(LEADSCREW_Position);
-        // MOTOR_Speed_PID = -PID_Position.compute();
+        MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
         MOTOR_Write_Flag = 0;
       } else { // IF PID Position not initialised, operate normal
@@ -257,8 +257,8 @@ void SERIAL_Print() {
   //   ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-  // PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
-  // TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
+  PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
+  TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
   //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position: %f
   //   "
   //             "EncoderCounts:%i \n\r",
@@ -266,8 +266,8 @@ void SERIAL_Print() {
   //             ENCODER_Count);
   //   PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
   //             MOTOR_Current);
-    PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
-  TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
+//     PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
+//   TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
 }
 
 void SetSpeed(int MOTOR_Speed) {
