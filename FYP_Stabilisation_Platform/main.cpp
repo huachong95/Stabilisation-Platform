@@ -11,7 +11,7 @@
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
 #define LEADSCREW_MAX_RANGE 330
-#define ENCODER_CPR 12         // Encoder Pulses per revolution
+#define ENCODER_CPR 17         // Encoder Pulses per revolution
 #define PID_POSITION_RATE 0.01 // Sample Rate of PID_Position
 #define SERIAL_PRINT_INTERVAL 0.01
 #define PID_CURRENT_RATE 0.0005 // Sample Rate of PID_Current
@@ -259,6 +259,7 @@ void SERIAL_Print() {
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
   PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
   TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
+  
   //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position: %f
   //   "
   //             "EncoderCounts:%i \n\r",
