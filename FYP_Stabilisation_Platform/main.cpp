@@ -11,11 +11,13 @@
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
 #define LEADSCREW_MAX_RANGE 330
-#define ENCODER_CPR 17         // Encoder Pulses per revolution
-#define PID_POSITION_RATE 0.01 // Sample Rate of PID_Position
+#define ENCODER_CPR 17 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.01
-#define PID_CURRENT_RATE 0.0005 // Sample Rate of PID_Current
-#define CURRENT_MAX_RANGE 20 // Max Amps supported by Current Sensor
+#define MOTOR_WRITE_RATE 0.01   // Write Rate of Motor
+#define PID_POSITION_RATE 0.02  // 50Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.002 // 500HzSample Rate of PID_Velocity
+#define PID_CURRENT_RATE 0.0002 // 5000HzSample Rate of PID_Current
+#define CURRENT_MAX_RANGE 20    // Max Amps supported by Current Sensor
 
 #include "PID.h"
 #include "mbed.h"
@@ -35,6 +37,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(10, 0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_ISR;
 Ticker SERIAL_PRINT;
@@ -84,11 +87,13 @@ int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
 bool PID_POSITION_INITIALISED = 0;
+bool PID_VELOCITY_INITIALISED = 0;
 bool PID_CURRENT_INITIALISED = 0;
 
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
 float DEMANDED_Position = 0.0;
+float DEMANDED_Velocity = 0.0;
 float DEMANDED_Current = 0.0;
 float MOTOR_Speed_PID = 0.0;
 
@@ -110,12 +115,13 @@ void LSWITCH_Rise_ISR();
 void LSWITCH_Fall_ISR();
 void CURRENT_SENSOR_ISR_Read();
 void PID_Position_Initialisation();
+void PID_Velocity_Initialisation();
 void PID_Current_Initialisation();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
                            //   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
-  MOTOR_ISR.attach(&MOTOR_ISR_Write, 0.001);
+  MOTOR_ISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   EncoderCheckISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
 
   L_PWM.period(0.00004);
@@ -128,8 +134,9 @@ int main() {
   LSWITCH_Home();
   CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
-    // PID_Position_Initialisation();
-//   PID_Current_Initialisation();
+  // PID_Position_Initialisation();
+  PID_Velocity_Initialisation();
+  // PID_Current_Initialisation();
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -161,12 +168,20 @@ int main() {
         DEMANDED_Position = atoi(payload);
         break;
       }
+            case 'V': {
+        // Expects "V,2000,\r"
+        char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
+        char *payload = strtok(NULL, ",");               // Expects:<payload>
+        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        DEMANDED_Velocity = atoi(payload);
+        break;
+      }
 
       case 'C': {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
         char *footer = strtok(NULL, ",");                // Expects: '\r'
-        DEMANDED_Current = (float)(atoi(payload))/100;
+        DEMANDED_Current = (float)(atoi(payload)) / 100;
         break;
       }
 
@@ -203,226 +218,238 @@ int main() {
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
-        MOTOR_Write_Flag = 0;
-      } else { // IF PID Position not initialised, operate normal
-        // SetSpeed(MOTOR_Speed);
-        MOTOR_Write_Flag = 0;
-      }
-    }
-
-    if (JOYSTICK_Read_Flag) {
-      JOYSTICK_Read();
-      JOYSTICK_Read_Flag = 0;
-    }
-    if (SERIAL_Print_Flag) {
-      SERIAL_Print();
-      SERIAL_Print_Flag = 0;
-    }
-    if (CURRENT_Sensor_Flag) {
-      CURRENT_Sensor_Read();
-      CURRENT_Sensor_Flag = 0;
-      if (PID_CURRENT_INITIALISED) {
-        if (DEMANDED_Current > CURRENT_MAX_RANGE) {
-          DEMANDED_Current = CURRENT_MAX_RANGE;
-        }
-        if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
-          DEMANDED_Current = -CURRENT_MAX_RANGE;
-        }
-                PID_Current.setSetPoint(DEMANDED_Current);
-        PID_Current.setProcessValue(MOTOR_Current);
-        MOTOR_Speed_PID = PID_Current.compute();
+      } else if (PID_VELOCITY_INITIALISED == 1) {
+        PID_Velocity.setSetPoint(DEMANDED_Velocity);
+        PID_Velocity.setProcessValue(ENCODER_RPM);
+        MOTOR_Speed_PID=PID_Velocity.compute();
         SetSpeed(MOTOR_Speed_PID);
       }
+        else { // IF PID Position not initialised, operate normal
+          // SetSpeed(MOTOR_Speed);
+        }
+        MOTOR_Write_Flag=0;
+      }
+
+      if (JOYSTICK_Read_Flag) {
+        JOYSTICK_Read();
+        JOYSTICK_Read_Flag = 0;
+      }
+      if (SERIAL_Print_Flag) {
+        SERIAL_Print();
+        SERIAL_Print_Flag = 0;
+      }
+      if (CURRENT_Sensor_Flag) {
+        CURRENT_Sensor_Read();
+        CURRENT_Sensor_Flag = 0;
+        if (PID_CURRENT_INITIALISED) {
+          if (DEMANDED_Current > CURRENT_MAX_RANGE) {
+            DEMANDED_Current = CURRENT_MAX_RANGE;
+          }
+          if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
+            DEMANDED_Current = -CURRENT_MAX_RANGE;
+          }
+          PID_Current.setSetPoint(DEMANDED_Current);
+          PID_Current.setProcessValue(MOTOR_Current);
+          MOTOR_Speed_PID = PID_Current.compute();
+          SetSpeed(MOTOR_Speed_PID);
+        }
+      }
     }
   }
-}
 
-void SERIAL_Read() {
-  SERIAL_RXDataBuffer[SERIAL_RX_Counter] =
-      PC.getc(); // Gets every new character and stores it in the RX serial
-                 // buffer
-  SERIAL_RX_Counter++; // Increments RX counter upon each byte storage
-  if (SERIAL_RXDataBuffer[SERIAL_RX_Counter - 1] ==
-      0x0D) { // Since /r = ENTER on keyboard = 0x0D(terminating byte in serial
-    // commands), Serial_Read Flag is activated upon detection of 0x0D,
-    // indicating data ready to be read
-    SERIAL_Read_Flag = 1;
+  void SERIAL_Read() {
+    SERIAL_RXDataBuffer[SERIAL_RX_Counter] =
+        PC.getc(); // Gets every new character and stores it in the RX serial
+                   // buffer
+    SERIAL_RX_Counter++; // Increments RX counter upon each byte storage
+    if (SERIAL_RXDataBuffer[SERIAL_RX_Counter - 1] ==
+        0x0D) { // Since /r = ENTER on keyboard = 0x0D(terminating byte in
+                // serial
+      // commands), Serial_Read Flag is activated upon detection of 0x0D,
+      // indicating data ready to be read
+      SERIAL_Read_Flag = 1;
+    }
   }
-}
-void SERIAL_Print() {
-//   PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current, MOTOR_Current_Raw);
-  // PC.printf("AnalogIn: %f %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
-  //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
-  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
-  //   ENCODER_Count);
-  //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
-  //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-  PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
-  TIME1_Current, DEMANDED_Position,LEADSCREW_Position);
-  
-  //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position: %f
-  //   "
-  //             "EncoderCounts:%i \n\r",
-  //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
-  //             ENCODER_Count);
-  //   PC.printf("ADC_Current: %f, Current:%f \n\r", CURRENT_Sensor_ADC_Reading,
-  //             MOTOR_Current);
-//     PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
-//   TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
-}
+  void SERIAL_Print() {
+    //   PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current,
+    //   MOTOR_Current_Raw);
+    // PC.printf("AnalogIn: %f
+    // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
+    //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
+    //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
+    //   ENCODER_Count);
+    //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
+    //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
+    PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
+              TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
 
-void SetSpeed(int MOTOR_Speed) {
-  if (MOTOR_Speed >= 0) {
-    R_EN = 1; // Enable motor to spin rightwards
-    L_EN = 1; // Disable motor to spin leftwards
-    //        R_PWMSpeed=map(abs(MOTOR_Speed),0,100,0,1.0);
-    //        R_PWM.write(R_PWMSpeed);
-    //        L_PWMSpeed=0;
-    //        L_PWM.write(L_PWMSpeed);
-    L_PWMSpeed = map(abs(MOTOR_Speed), 0, 100, 0, MAX_PWM);
-    L_PWM.write(L_PWMSpeed);
-    R_PWMSpeed = 0;
-    R_PWM.write(R_PWMSpeed);
-  } else {
-    L_EN = 1; // Enable motor to spin leftwards
-    R_EN = 1; // Disable motor to spin rightwards
-
-    R_PWMSpeed = map(abs(MOTOR_Speed), 0, 100, 0, MAX_PWM);
-    R_PWM.write(R_PWMSpeed);
-    L_PWMSpeed = 0;
-    L_PWM.write(L_PWMSpeed);
+    //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position:
+    //   %f
+    //   "
+    //             "EncoderCounts:%i \n\r",
+    //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
+    //             ENCODER_Count);
+    //   PC.printf("ADC_Current: %f, Current:%f \n\r",
+    //   CURRENT_Sensor_ADC_Reading,
+    //             MOTOR_Current);
+    //     PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f
+    //     MOTOR_Speed: %f \n\r",
+    //   TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
   }
-}
 
-void JOYSTICK_Read() {
-  // float Xpos=1-XJoystick.read(); //inverts the horizontal joystick position
-  JOYSTICK_Y_Position =
-      1 - JOYSTICK_Y.read(); // inverts the vertical Joystick position
-  MOTOR_Speed = map(JOYSTICK_Y_Position, 0.0, 1.0, -100,
-                    100); // maps X position to pwm of motor
-}
-
-float map(float in, float inMin, float inMax, float outMin,
-          float outMax) { // Function to scale the inputs to desired outputs
-  // check it's within the range
-  if (inMin < inMax) {
-    if (in <= inMin)
-      return outMin;
-    if (in >= inMax)
-      return outMax;
-  } else { // cope with input range being backwards.
-    if (in >= inMin)
-      return outMin;
-    if (in <= inMax)
-      return outMax;
-  }
-  // calculate how far into the range we are
-  float scale = (in - inMin) / (inMax - inMin);
-  // calculate the output.
-  return outMin + scale * (outMax - outMin);
-}
-
-// encoder event for the interrupt call
-void ENCODER_Event() {
-  if ((RH_ENCODER_A) == 1) {
-    if ((RH_ENCODER_B) == 0) {
-      ENCODER_Count--;
+  void SetSpeed(int MOTOR_Speed) {
+    if (MOTOR_Speed >= 0) {
+      R_EN = 1; // Enable motor to spin rightwards
+      L_EN = 1; // Disable motor to spin leftwards
+      //        R_PWMSpeed=map(abs(MOTOR_Speed),0,100,0,1.0);
+      //        R_PWM.write(R_PWMSpeed);
+      //        L_PWMSpeed=0;
+      //        L_PWM.write(L_PWMSpeed);
+      L_PWMSpeed = map(abs(MOTOR_Speed), 0, 100, 0, MAX_PWM);
+      L_PWM.write(L_PWMSpeed);
+      R_PWMSpeed = 0;
+      R_PWM.write(R_PWMSpeed);
     } else {
-      ENCODER_Count++;
+      L_EN = 1; // Enable motor to spin leftwards
+      R_EN = 1; // Disable motor to spin rightwards
+
+      R_PWMSpeed = map(abs(MOTOR_Speed), 0, 100, 0, MAX_PWM);
+      R_PWM.write(R_PWMSpeed);
+      L_PWMSpeed = 0;
+      L_PWM.write(L_PWMSpeed);
     }
-  } else {
-    if ((RH_ENCODER_B) == 0) {
-      ENCODER_Count++;
+  }
+
+  void JOYSTICK_Read() {
+    // float Xpos=1-XJoystick.read(); //inverts the horizontal joystick position
+    JOYSTICK_Y_Position =
+        1 - JOYSTICK_Y.read(); // inverts the vertical Joystick position
+    MOTOR_Speed = map(JOYSTICK_Y_Position, 0.0, 1.0, -100,
+                      100); // maps X position to pwm of motor
+  }
+
+  float map(float in, float inMin, float inMax, float outMin,
+            float outMax) { // Function to scale the inputs to desired outputs
+    // check it's within the range
+    if (inMin < inMax) {
+      if (in <= inMin)
+        return outMin;
+      if (in >= inMax)
+        return outMax;
+    } else { // cope with input range being backwards.
+      if (in >= inMin)
+        return outMin;
+      if (in <= inMax)
+        return outMax;
+    }
+    // calculate how far into the range we are
+    float scale = (in - inMin) / (inMax - inMin);
+    // calculate the output.
+    return outMin + scale * (outMax - outMin);
+  }
+
+  // encoder event for the interrupt call
+  void ENCODER_Event() {
+    if ((RH_ENCODER_A) == 1) {
+      if ((RH_ENCODER_B) == 0) {
+        ENCODER_Count--;
+      } else {
+        ENCODER_Count++;
+      }
     } else {
-      ENCODER_Count--;
+      if ((RH_ENCODER_B) == 0) {
+        ENCODER_Count++;
+      } else {
+        ENCODER_Count--;
+      }
     }
   }
-}
 
-void ENCODER_Check() {
-  TIME1_Current = TIME1.read();
-  TIME1_Sample_Duration = TIME1_Current - TIME1_Previous;
-  TIME1_Previous = TIME1_Current;
+  void ENCODER_Check() {
+    TIME1_Current = TIME1.read();
+    TIME1_Sample_Duration = TIME1_Current - TIME1_Previous;
+    TIME1_Previous = TIME1_Current;
 
-  // since encoder feedback resolution is 17 for 1 revolution (shaft
-  ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
-  ENCODER_RPM =
-      ENCODER_Change / (ENCODER_CPR * ENCODER_INTERVAL) * 60; // right wheel RPM
-  //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
-  //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
-  ENCODER_Old_Count = ENCODER_Count;
-  LEADSCREW_Position = (float)LEADSCREW_LEAD / ENCODER_CPR * ENCODER_Count;
-}
-
-void LSWITCH_Home() {
-  while (LSWITCH_Complete_Home == 0) {
-    while (LSWITCH_Flag == 0) {
-      SetSpeed(40); // Lift platform to hit LSWTICH
-    }
-    SetSpeed(0);
-    thread_sleep_for(LSWITCH_SLEEP_DURATION);
-    while (LSWITCH_Flag == 1) {
-      SetSpeed(-35); // Lower platform to release LSWITCH
-    }
-    SetSpeed(0);
-    thread_sleep_for(LSWITCH_SLEEP_DURATION);
-    while (LSWITCH_Flag == 0) {
-      SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
-    }
-    SetSpeed(0);
-    thread_sleep_for(LSWITCH_SLEEP_DURATION);
-    while (LSWITCH_Flag == 1) {
-      SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
-    }
-    SetSpeed(0);
-    thread_sleep_for(LSWITCH_SLEEP_DURATION);
-    LEADSCREW_Position = 0; // Resets Leadscrew position
-    ENCODER_Count = 0;      // Resets Encoder position
-    LSWITCH_Complete_Home = 1;
+    // since encoder feedback resolution is 17 for 1 revolution (shaft
+    ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
+    ENCODER_RPM = ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
+                  60; // right wheel RPM
+    //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
+    //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
+    ENCODER_Old_Count = ENCODER_Count;
+    LEADSCREW_Position = (float)LEADSCREW_LEAD / ENCODER_CPR * ENCODER_Count;
   }
-}
 
-float CURRENT_Sensor_Offset() {
-  float ADC_Accumulated_Readings = 0;
-  for (int counter = 0; counter < 500; counter++) {
-    ADC_Accumulated_Readings += CURRENT_Sensor.read();
+  void LSWITCH_Home() {
+    while (LSWITCH_Complete_Home == 0) {
+      while (LSWITCH_Flag == 0) {
+        SetSpeed(40); // Lift platform to hit LSWTICH
+      }
+      SetSpeed(0);
+      thread_sleep_for(LSWITCH_SLEEP_DURATION);
+      while (LSWITCH_Flag == 1) {
+        SetSpeed(-35); // Lower platform to release LSWITCH
+      }
+      SetSpeed(0);
+      thread_sleep_for(LSWITCH_SLEEP_DURATION);
+      while (LSWITCH_Flag == 0) {
+        SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
+      }
+      SetSpeed(0);
+      thread_sleep_for(LSWITCH_SLEEP_DURATION);
+      while (LSWITCH_Flag == 1) {
+        SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
+      }
+      SetSpeed(0);
+      thread_sleep_for(LSWITCH_SLEEP_DURATION);
+      LEADSCREW_Position = 0; // Resets Leadscrew position
+      ENCODER_Count = 0;      // Resets Encoder position
+      LSWITCH_Complete_Home = 1;
+    }
   }
-  float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings / 500);
-  return Averaged_Current_Offset;
-}
-void CURRENT_Sensor_Read() {
-  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() - CURRENT_Offset;
-  MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -27.5, 27.5);
-  CURRENT_Filter_Data[1] = CURRENT_Filter_Alpha * MOTOR_Current_Raw +
-                           (1 - CURRENT_Filter_Alpha) * CURRENT_Filter_Data[0];
-  CURRENT_Filter_Data[0] = CURRENT_Filter_Data[1];
-  MOTOR_Current = CURRENT_Filter_Data[1];
-  // MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -16.67,16.67);
-}
 
-void PID_Position_Initialisation() {
-  PID_Position.setInputLimits(0, LEADSCREW_MAX_RANGE);
-  PID_Position.setOutputLimits(-100, 100);
-  PID_Position.setMode(AUTO_MODE);
-  PID_POSITION_INITIALISED = 1;
-}
-
-void PID_Current_Initialisation() {
-  PID_Current.setInputLimits(-CURRENT_MAX_RANGE, CURRENT_MAX_RANGE);
-  PID_Current.setOutputLimits(-100, 100);
-  PID_Current.setMode(AUTO_MODE);
-  PID_CURRENT_INITIALISED = 1;
-}
-// ISR Functions
-void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
-void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
-void LSWITCH_Rise_ISR() { LSWITCH_Flag = 0; } // LSWITCH is released
-void LSWITCH_Fall_ISR() {
-  LSWITCH_Flag = 1;
-  if (LSWITCH_Complete_Home) {
-    MOTOR_Speed = 0; // Hardware failsafe, stops motor immediately if it crashes
-                     // into LSWITCH
+  float CURRENT_Sensor_Offset() {
+    float ADC_Accumulated_Readings = 0;
+    for (int counter = 0; counter < 500; counter++) {
+      ADC_Accumulated_Readings += CURRENT_Sensor.read();
+    }
+    float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings / 500);
+    return Averaged_Current_Offset;
   }
-} // LSWITCH is being pressed
-void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
-void CURRENT_SENSOR_ISR_Read() { CURRENT_Sensor_Flag = 1; }
+  void CURRENT_Sensor_Read() {
+    CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() - CURRENT_Offset;
+    MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -27.5, 27.5);
+    CURRENT_Filter_Data[1] =
+        CURRENT_Filter_Alpha * MOTOR_Current_Raw +
+        (1 - CURRENT_Filter_Alpha) * CURRENT_Filter_Data[0];
+    CURRENT_Filter_Data[0] = CURRENT_Filter_Data[1];
+    MOTOR_Current = CURRENT_Filter_Data[1];
+    // MOTOR_Current = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -16.67,16.67);
+  }
+
+  void PID_Position_Initialisation() {
+    PID_Position.setInputLimits(0, LEADSCREW_MAX_RANGE);
+    PID_Position.setOutputLimits(-100, 100);
+    PID_Position.setMode(AUTO_MODE);
+    PID_POSITION_INITIALISED = 1;
+  }
+
+  void PID_Current_Initialisation() {
+    PID_Current.setInputLimits(-CURRENT_MAX_RANGE, CURRENT_MAX_RANGE);
+    PID_Current.setOutputLimits(-100, 100);
+    PID_Current.setMode(AUTO_MODE);
+    PID_CURRENT_INITIALISED = 1;
+  }
+  // ISR Functions
+  void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
+  void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
+  void LSWITCH_Rise_ISR() { LSWITCH_Flag = 0; } // LSWITCH is released
+  void LSWITCH_Fall_ISR() {
+    LSWITCH_Flag = 1;
+    if (LSWITCH_Complete_Home) {
+      MOTOR_Speed = 0; // Hardware failsafe, stops motor immediately if it
+                       // crashes into LSWITCH
+    }
+  } // LSWITCH is being pressed
+  void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
+  void CURRENT_SENSOR_ISR_Read() { CURRENT_Sensor_Flag = 1; }
