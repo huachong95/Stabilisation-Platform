@@ -40,11 +40,14 @@ AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(10, 0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
-Ticker MOTOR_ISR;
-Ticker SERIAL_PRINT;
-Ticker JOYSTICK_ISR;    // Ticker interrupt for updating of joystick position
-Ticker EncoderCheckISR; // Ticker interrupt for Encoder ISR
-Ticker CURRENT_Sensor_ISR;
+Ticker MOTOR_TISR;
+Ticker SERIAL_Print_TISR;
+Ticker JOYSTICK_TISR;      // Ticker interrupt for updating of joystick position
+Ticker ENCODER_Check_TISR; // Ticker interrupt for Encoder ISR
+Ticker CURRENT_Sensor_TISR;
+Ticker PID_Position_TISR;
+Ticker PID_Velocity_TISR;
+Ticker PID_Current_TISR;
 Timer TIME1;
 
 // VARIABLE INSTANTIATION
@@ -90,6 +93,9 @@ float ENCODER_Old_Count = 0.0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
 bool PID_CURRENT_INITIALISED = 0;
+bool PID_Position_Flag = 0;
+bool PID_Velocity_Flag = 0;
+bool PID_Current_Flag = 0;
 
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
@@ -114,6 +120,9 @@ void JOYSTICK_ISR_Read();
 void SERIAL_Print_ISR();
 void LSWITCH_Rise_ISR();
 void LSWITCH_Fall_ISR();
+void PID_Position_ISR();
+void PID_Velocity_ISR();
+void PID_Current_ISR();
 void CURRENT_SENSOR_ISR_Read();
 void PID_Position_Initialisation();
 void PID_Velocity_Initialisation();
@@ -121,9 +130,9 @@ void PID_Current_Initialisation();
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
-                           //   JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005),
-  MOTOR_ISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
-  EncoderCheckISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
+                           //   JOYSTICK_TISR.attach(&JOYSTICK_ISR_Read, 0.005),
+  MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
+  ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
 
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
@@ -132,13 +141,13 @@ int main() {
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
-  LSWITCH_Home();
-  CURRENT_Sensor_ISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
+  //   LSWITCH_Home();
+  CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
   // PID_Position_Initialisation();
-  PID_Velocity_Initialisation();
+  // PID_Velocity_Initialisation();
   // PID_Current_Initialisation();
-  SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
+  SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
     if (SERIAL_Read_Flag) {
@@ -187,12 +196,12 @@ int main() {
       }
 
       case 'J': {
-        JOYSTICK_ISR.attach(&JOYSTICK_ISR_Read, 0.005);
+        JOYSTICK_TISR.attach(&JOYSTICK_ISR_Read, 0.005);
         break;
       }
 
       case 'S': {
-        JOYSTICK_ISR
+        JOYSTICK_TISR
             .detach(); // Detach Interrupt for reading of Joystick position
         break;
       }
@@ -206,8 +215,9 @@ int main() {
       }
       }
     }
-    if (MOTOR_Write_Flag) {
-      if (PID_POSITION_INITIALISED == 1) {
+    if ((PID_POSITION_INITIALISED) || (PID_VELOCITY_INITIALISED) ||
+        (PID_CURRENT_INITIALISED)) { // PID Initialised
+      if (PID_Position_Flag) {
         // Imposing limits to leadscrew demanded position
         if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
           DEMANDED_Position = LEADSCREW_MAX_RANGE;
@@ -219,15 +229,28 @@ int main() {
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
-      } else if (PID_VELOCITY_INITIALISED == 1) {
+      } else if (PID_Velocity_Flag) {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
         MOTOR_Speed_PID = PID_Velocity.compute();
         SetSpeed(MOTOR_Speed_PID);
-      } else { // IF PID Position not initialised, operate normal
-        // SetSpeed(MOTOR_Speed);
+      } else if (PID_Current_Flag) {
+        if (DEMANDED_Current > CURRENT_MAX_RANGE) {
+          DEMANDED_Current = CURRENT_MAX_RANGE;
+        }
+        if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
+          DEMANDED_Current = -CURRENT_MAX_RANGE;
+        }
+        PID_Current.setSetPoint(DEMANDED_Current);
+        PID_Current.setProcessValue(MOTOR_Current);
+        MOTOR_Speed_PID = PID_Current.compute();
+        SetSpeed(MOTOR_Speed_PID);
       }
-      MOTOR_Write_Flag = 0;
+    } else {
+      if (MOTOR_Write_Flag) {
+        SetSpeed(MOTOR_Speed);
+        MOTOR_Write_Flag = 0;
+      }
     }
 
     if (JOYSTICK_Read_Flag) {
@@ -241,18 +264,6 @@ int main() {
     if (CURRENT_Sensor_Flag) {
       CURRENT_Sensor_Read();
       CURRENT_Sensor_Flag = 0;
-      if (PID_CURRENT_INITIALISED) {
-        if (DEMANDED_Current > CURRENT_MAX_RANGE) {
-          DEMANDED_Current = CURRENT_MAX_RANGE;
-        }
-        if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
-          DEMANDED_Current = -CURRENT_MAX_RANGE;
-        }
-        PID_Current.setSetPoint(DEMANDED_Current);
-        PID_Current.setProcessValue(MOTOR_Current);
-        MOTOR_Speed_PID = PID_Current.compute();
-        SetSpeed(MOTOR_Speed_PID);
-      }
     }
   }
 }
@@ -280,8 +291,8 @@ void SERIAL_Print() {
   //   ENCODER_Count);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-  PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
-            TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
+  //   PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
+  //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
 
   //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position:
   //   %f
@@ -427,12 +438,14 @@ void CURRENT_Sensor_Read() {
 }
 
 void PID_Position_Initialisation() {
+  PID_Position_TISR.attach(&PID_Position_ISR, PID_POSITION_RATE);
   PID_Position.setInputLimits(0, LEADSCREW_MAX_RANGE);
   PID_Position.setOutputLimits(-100, 100);
   PID_Position.setMode(AUTO_MODE);
   PID_POSITION_INITIALISED = 1;
 }
 void PID_Velocity_Initialisation() {
+  PID_Velocity_TISR.attach(&PID_Velocity_ISR, PID_VELOCITY_RATE);
   PID_Velocity.setInputLimits(-MAX_MOTORSPEED, MAX_MOTORSPEED);
   PID_Velocity.setOutputLimits(-100, 100);
   PID_Velocity.setMode(AUTO_MODE);
@@ -440,6 +453,7 @@ void PID_Velocity_Initialisation() {
 }
 
 void PID_Current_Initialisation() {
+  PID_Current_TISR.attach(&PID_Current_ISR, PID_CURRENT_RATE);
   PID_Current.setInputLimits(-CURRENT_MAX_RANGE, CURRENT_MAX_RANGE);
   PID_Current.setOutputLimits(-100, 100);
   PID_Current.setMode(AUTO_MODE);
@@ -458,3 +472,6 @@ void LSWITCH_Fall_ISR() {
 } // LSWITCH is being pressed
 void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
 void CURRENT_SENSOR_ISR_Read() { CURRENT_Sensor_Flag = 1; }
+void PID_Position_ISR() { PID_Position_Flag = 1; }
+void PID_Velocity_ISR() { PID_Velocity_Flag = 1; }
+void PID_Current_ISR() { PID_Current_Flag = 1; }
