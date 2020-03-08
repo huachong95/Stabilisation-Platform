@@ -7,16 +7,16 @@
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
 #define CURRENT_SENSOR_PIN A0      // ACS712 Current Sensor pin
-#define ENCODER_INTERVAL 0.01      // Encoder read interval
+#define ENCODER_INTERVAL 0.05       // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
 #define LEADSCREW_MAX_RANGE 330
 #define MAX_MOTORSPEED 4500
-#define ENCODER_CPR 17 // Encoder Pulses per revolution
+#define ENCODER_CPR 30 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.01
 #define MOTOR_WRITE_RATE 0.01   // Write Rate of Motor
 #define PID_POSITION_RATE 0.02  // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.002 // 500HzSample Rate of PID_Velocity
+#define PID_VELOCITY_RATE 0.05   // 500HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0002 // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20    // Max Amps supported by Current Sensor
 
@@ -38,7 +38,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(10, 0, 0, PID_VELOCITY_RATE);
+PID PID_Velocity(4, 1.0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -133,19 +133,19 @@ int main() {
                            //   JOYSTICK_TISR.attach(&JOYSTICK_ISR_Read, 0.005),
   MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
-
   L_PWM.period(0.00004);
   R_PWM.period(0.00004);
-  RH_ENCODER_A.rise(&ENCODER_Event);
-  RH_ENCODER_A.fall(&ENCODER_Event);
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
-  //   LSWITCH_Home();
+  LSWITCH_Home();
+  RH_ENCODER_A.rise(&ENCODER_Event);
+  RH_ENCODER_A.fall(&ENCODER_Event);
+
   CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
   // PID_Position_Initialisation();
-  // PID_Velocity_Initialisation();
+  PID_Velocity_Initialisation();
   // PID_Current_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
@@ -232,7 +232,9 @@ int main() {
       } else if (PID_Velocity_Flag) {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
-        MOTOR_Speed_PID = PID_Velocity.compute();
+        MOTOR_Speed_PID = -PID_Velocity.compute();
+        PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
+                  ENCODER_RPM, MOTOR_Speed_PID);
         SetSpeed(MOTOR_Speed_PID);
       } else if (PID_Current_Flag) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
@@ -287,8 +289,8 @@ void SERIAL_Print() {
   // PC.printf("AnalogIn: %f
   // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
-  //   printf(" RSpeed: %f, ENCODER_Count: %ld \n\r", ENCODER_RPM,
-  //   ENCODER_Count);
+  // PC.printf(" RSpeed: %f, ENCODER_Count: %i Encoder Change:%f \n\r",
+  // ENCODER_RPM, ENCODER_Count,ENCODER_Change);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
   //   PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
@@ -383,8 +385,8 @@ void ENCODER_Check() {
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
-  ENCODER_RPM = ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
-                60; // right wheel RPM
+  ENCODER_RPM = (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
+                        60); // right wheel RPM
   //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
   ENCODER_Old_Count = ENCODER_Count;
