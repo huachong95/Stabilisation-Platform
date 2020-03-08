@@ -38,7 +38,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4, 1.0, 0, PID_VELOCITY_RATE);
+PID PID_Velocity(4, 5.0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -144,7 +144,7 @@ int main() {
 
   CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
-  // PID_Position_Initialisation();
+//   PID_Position_Initialisation();
   PID_Velocity_Initialisation();
   // PID_Current_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
@@ -233,8 +233,8 @@ int main() {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
         MOTOR_Speed_PID = -PID_Velocity.compute();
-        PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
-                  ENCODER_RPM, MOTOR_Speed_PID);
+        // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
+        //           ENCODER_RPM, MOTOR_Speed_PID);
         SetSpeed(MOTOR_Speed_PID);
       } else if (PID_Current_Flag) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
