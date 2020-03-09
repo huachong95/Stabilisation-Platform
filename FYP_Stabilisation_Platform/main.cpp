@@ -38,7 +38,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4.0, 20.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -182,7 +182,7 @@ int main() {
         // Expects "V,2000,\r"
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");                // Expects: '\r'
         DEMANDED_Velocity = atoi(payload);
         break;
       }
@@ -284,6 +284,7 @@ void SERIAL_Read() {
 void SERIAL_Print() {
   //   PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current,
   //   MOTOR_Current_Raw);
+  PC.printf("%f %f \n\r",DEMANDED_Velocity,ENCODER_RPM);
   // PC.printf("AnalogIn: %f
   // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
@@ -303,8 +304,8 @@ void SERIAL_Print() {
   //   PC.printf("ADC_Current: %f, Current:%f \n\r",
   //   CURRENT_Sensor_ADC_Reading,
   //             MOTOR_Current);
-      PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
-    TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
+    //   PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
+    // TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
             // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
             //       ENCODER_RPM, MOTOR_Speed_PID);
 }
