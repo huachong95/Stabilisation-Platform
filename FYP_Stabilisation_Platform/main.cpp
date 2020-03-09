@@ -15,8 +15,8 @@
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.01
 #define MOTOR_WRITE_RATE 0.01   // Write Rate of Motor
-#define PID_POSITION_RATE 0.02  // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.05   // 500HzSample Rate of PID_Velocity
+#define PID_POSITION_RATE 0.1  // 50Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.01   // 500HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0002 // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20    // Max Amps supported by Current Sensor
 
@@ -38,13 +38,13 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4.5, 5.0, 0, PID_VELOCITY_RATE);
+PID PID_Velocity(4.0, 20.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
 Ticker JOYSTICK_TISR;      // Ticker interrupt for updating of joystick position
 Ticker ENCODER_Check_TISR; // Ticker interrupt for Encoder ISR
-Ticker CURRENT_Sensor_TISR;
+Ticker CURRENT_Sensor_TISR; 
 Ticker PID_Position_TISR;
 Ticker PID_Velocity_TISR;
 Ticker PID_Current_TISR;
@@ -146,7 +146,7 @@ int main() {
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
 //   PID_Position_Initialisation();
   PID_Velocity_Initialisation();
-  // PID_Current_Initialisation();
+//   PID_Current_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -233,8 +233,6 @@ int main() {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
         MOTOR_Speed_PID = -PID_Velocity.compute();
-        PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
-                  ENCODER_RPM, MOTOR_Speed_PID);
         SetSpeed(MOTOR_Speed_PID);
       } else if (PID_Current_Flag) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
@@ -305,9 +303,10 @@ void SERIAL_Print() {
   //   PC.printf("ADC_Current: %f, Current:%f \n\r",
   //   CURRENT_Sensor_ADC_Reading,
   //             MOTOR_Current);
-  //     PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f
-  //     MOTOR_Speed: %f \n\r",
-  //   TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
+      PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
+    TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
+            // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
+            //       ENCODER_RPM, MOTOR_Speed_PID);
 }
 
 void SetSpeed(int MOTOR_Speed) {
