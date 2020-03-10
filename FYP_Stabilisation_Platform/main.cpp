@@ -7,7 +7,7 @@
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
 #define CURRENT_SENSOR_PIN A0      // ACS712 Current Sensor pin
-#define ENCODER_INTERVAL 0.05       // Encoder read interval
+#define ENCODER_INTERVAL 0.05      // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
 #define LEADSCREW_MAX_RANGE 330
@@ -15,8 +15,8 @@
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.01
 #define MOTOR_WRITE_RATE 0.01   // Write Rate of Motor
-#define PID_POSITION_RATE 0.1  // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.01   // 500HzSample Rate of PID_Velocity
+#define PID_POSITION_RATE 0.1   // 50Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.01  // 500HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0002 // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20    // Max Amps supported by Current Sensor
 
@@ -39,12 +39,12 @@ AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
-PID PID_Current(60, 5.0, 0, PID_CURRENT_RATE);
+PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
 Ticker JOYSTICK_TISR;      // Ticker interrupt for updating of joystick position
 Ticker ENCODER_Check_TISR; // Ticker interrupt for Encoder ISR
-Ticker CURRENT_Sensor_TISR; 
+Ticker CURRENT_Sensor_TISR;
 Ticker PID_Position_TISR;
 Ticker PID_Velocity_TISR;
 Ticker PID_Current_TISR;
@@ -144,9 +144,9 @@ int main() {
 
   CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
-//   PID_Position_Initialisation();
-  PID_Velocity_Initialisation();
-//   PID_Current_Initialisation();
+                                            //   PID_Position_Initialisation();
+//   PID_Velocity_Initialisation();
+    PID_Current_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -182,7 +182,7 @@ int main() {
         // Expects "V,2000,\r"
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, "\r");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");               // Expects: '\r'
         DEMANDED_Velocity = atoi(payload);
         break;
       }
@@ -282,9 +282,9 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  //   PC.printf("%f %f %f \n\r", TIME1_Current, MOTOR_Current,
-  //   MOTOR_Current_Raw);
-  PC.printf("%f %f \n\r",DEMANDED_Velocity,ENCODER_RPM);
+    PC.printf("%f %f %f \n\r",TIME1_Current, DEMANDED_Current,
+    MOTOR_Current);
+//   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity, ENCODER_RPM);
   // PC.printf("AnalogIn: %f
   // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
@@ -304,10 +304,13 @@ void SERIAL_Print() {
   //   PC.printf("ADC_Current: %f, Current:%f \n\r",
   //   CURRENT_Sensor_ADC_Reading,
   //             MOTOR_Current);
-    //   PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f MOTOR_Speed: %f \n\r",
-    // TIME1_Current, DEMANDED_Current,MOTOR_Current,MOTOR_Speed_PID);
-            // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
-            //       ENCODER_RPM, MOTOR_Speed_PID);
+  //   PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f
+  //   MOTOR_Speed: "
+  //             "%f \n\r",
+  //             TIME1_Current, DEMANDED_Current, MOTOR_Current,
+  //             MOTOR_Speed_PID);
+  // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
+  //       ENCODER_RPM, MOTOR_Speed_PID);
 }
 
 void SetSpeed(int MOTOR_Speed) {
