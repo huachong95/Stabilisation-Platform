@@ -20,7 +20,7 @@
 #define PID_VELOCITY_RATE 0.01    // 500HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 200 // Leadscrew initial position
+#define LEADSCREW_INITIAL_POS 150 // Leadscrew initial position
 
 #include "PID.h"
 #include "mbed.h"
