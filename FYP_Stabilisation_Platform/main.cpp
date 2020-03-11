@@ -158,7 +158,6 @@ int main() {
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
-              PC.printf("1\n\r");
     while (LEADSCREW_Initialisation == 0) {
       if (PID_Position_Flag) {
         // Imposing limits to leadscrew demanded position
@@ -174,6 +173,7 @@ int main() {
         SetSpeed(MOTOR_Speed_PID);
       }
       if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS-5)&&((LEADSCREW_Position <= LEADSCREW_INITIAL_POS+5))) {
+        SetSpeed(0);
         LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
       }
     }
@@ -253,10 +253,10 @@ int main() {
       }
       }
     }
-    if ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED) &&
-        (PID_POSITION_INITIALISED)) {
+    if ((Cascade_Mode==3)&&((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED) &&
+        (PID_POSITION_INITIALISED))) {
 
-    } else if ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED)) {
+    } else if ((Cascade_Mode==2)&&((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED))) {
       if (PID_Velocity_Flag) {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
@@ -273,10 +273,9 @@ int main() {
         PID_Current.setProcessValue(MOTOR_Current);
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
-        PC.printf("4 \n\r");
       }
 
-    } else if (PID_CURRENT_INITIALISED) {
+    } else if ((Cascade_Mode==1)&&(PID_CURRENT_INITIALISED)) {
       if (PID_Current_Flag) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
           DEMANDED_Current = CURRENT_MAX_RANGE;
@@ -289,7 +288,6 @@ int main() {
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
       }
-              PC.printf("3\n\r");
     }
     // if ((PID_POSITION_INITIALISED) || (PID_VELOCITY_INITIALISED) ||
     //     (PID_CURRENT_INITIALISED)) { // PID Initialised
@@ -358,18 +356,18 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-//   if (Cascade_Mode == 1) {
-//     PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
-//   }
-//   if (Cascade_Mode == 2) {
-//     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current,
-//               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
-//   }
-//   if (Cascade_Mode == 3) {
-//     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current,
-//               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM, DEMANDED_Position,
-//               LEADSCREW_Position);
-//   }
+  if (Cascade_Mode == 1) {
+    PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
+  }
+  if (Cascade_Mode == 2) {
+    PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current,
+              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
+  }
+  if (Cascade_Mode == 3) {
+    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current,
+              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM, DEMANDED_Position,
+              LEADSCREW_Position);
+  }
   //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
   //   ENCODER_RPM);
   // PC.printf("AnalogIn: %f
