@@ -38,7 +38,6 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-// PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
 PID PID_Position(20, 1500.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(6.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
