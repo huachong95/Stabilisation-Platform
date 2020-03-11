@@ -14,12 +14,12 @@
 #define MAX_MOTORSPEED 4500
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.01
-#define MOTOR_WRITE_RATE 0.01   // Write Rate of Motor
-#define PID_POSITION_RATE 0.1   // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.01  // 500HzSample Rate of PID_Velocity
-#define PID_CURRENT_RATE 0.0002 // 5000HzSample Rate of PID_Current
-#define CURRENT_MAX_RANGE 20    // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 260 //Initial Leadscrew Position
+#define MOTOR_WRITE_RATE 0.01     // Write Rate of Motor
+#define PID_POSITION_RATE 0.1     // 50Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.01    // 500HzSample Rate of PID_Velocity
+#define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
+#define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
+#define LEADSCREW_INITIAL_POS 260 // Initial Leadscrew Position
 
 #include "PID.h"
 #include "mbed.h"
@@ -38,7 +38,7 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-PID PID_Position(20, 1500.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(10, 1500.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(6.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
@@ -91,7 +91,7 @@ float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
-bool LEADSCREW_Initialisation=0;
+bool LEADSCREW_Initialisation = 0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
 bool PID_CURRENT_INITIALISED = 0;
@@ -152,16 +152,24 @@ int main() {
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
-      while(LEADSCREW_Initialisation==0)
-      {
-        PID_Position.setSetPoint(LEADSCREW_INITIAL_POS);
+    while (LEADSCREW_Initialisation == 0) {
+      if (PID_Position_Flag) {
+        // Imposing limits to leadscrew demanded position
+        if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
+          DEMANDED_Position = LEADSCREW_MAX_RANGE;
+        }
+        if (DEMANDED_Position < 0) {
+          DEMANDED_Position = 0;
+        }
+        PID_Position.setSetPoint(DEMANDED_Position);
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
-        if(LEADSCREW_Position==LEADSCREW_Position){
-            LEADSCREW_Initialisation=1; //Leadscrew Initialisation complete
-        }
       }
+      if (LEADSCREW_Position == LEADSCREW_INITIAL_POS) {
+        LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
+      }
+    }
     if (SERIAL_Read_Flag) {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
@@ -296,7 +304,8 @@ void SERIAL_Read() {
 void SERIAL_Print() {
   // PC.printf("%f %f %f \n\r",TIME1_Current, DEMANDED_Current,
   // MOTOR_Current);
-//   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity, ENCODER_RPM);
+  //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
+  //   ENCODER_RPM);
   // PC.printf("AnalogIn: %f
   // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);
@@ -304,8 +313,8 @@ void SERIAL_Print() {
   // ENCODER_RPM, ENCODER_Count,ENCODER_Change);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-    PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
-              TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
+  PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
+            TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
   //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position:
   //   %f
   //   "
@@ -428,7 +437,7 @@ void LSWITCH_Home() {
       SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
     }
     SetSpeed(-35);
-    thread_sleep_for(350); //Creates offset gap from LSWTICH
+    thread_sleep_for(350); // Creates offset gap from LSWTICH
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     LEADSCREW_Position = 0; // Resets Leadscrew position
