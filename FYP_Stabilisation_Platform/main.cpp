@@ -19,7 +19,7 @@
 #define PID_VELOCITY_RATE 0.01    // 500HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 260 // Initial Leadscrew Position
+#define LEADSCREW_INITIAL_POS 150 // Initial Leadscrew Position
 
 #include "PID.h"
 #include "mbed.h"
@@ -39,7 +39,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(10, 1500.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(6.0, 200.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -91,6 +91,7 @@ float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
+int LEADSCREW_Mode = 1; // 1==Position, 2==Velocity, 3==Current
 bool LEADSCREW_Initialisation = 0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
@@ -147,8 +148,8 @@ int main() {
   CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
   PID_Position_Initialisation();
-  //   PID_Velocity_Initialisation();
-  //   PID_Current_Initialisation();
+  PID_Velocity_Initialisation();
+  PID_Current_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -237,7 +238,7 @@ int main() {
     }
     if ((PID_POSITION_INITIALISED) || (PID_VELOCITY_INITIALISED) ||
         (PID_CURRENT_INITIALISED)) { // PID Initialised
-      if (PID_Position_Flag) {
+      if ((LEADSCREW_Mode == 1) && (PID_Position_Flag)) {
         // Imposing limits to leadscrew demanded position
         if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
           DEMANDED_Position = LEADSCREW_MAX_RANGE;
@@ -249,12 +250,12 @@ int main() {
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
-      } else if (PID_Velocity_Flag) {
+      } else if ((LEADSCREW_Mode == 2) && (PID_Velocity_Flag)) {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
         MOTOR_Speed_PID = -PID_Velocity.compute();
         SetSpeed(MOTOR_Speed_PID);
-      } else if (PID_Current_Flag) {
+      } else if ((LEADSCREW_Mode == 3) && (PID_Current_Flag)) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
           DEMANDED_Current = CURRENT_MAX_RANGE;
         }
@@ -302,6 +303,14 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
+  if (LEADSCREW_Mode == 1) {
+    PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Position,
+              LEADSCREW_Position);
+  } else if (LEADSCREW_Mode == 2) {
+    PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity, ENCODER_RPM);
+  } else if (LEADSCREW_Mode == 3) {
+    PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
+  }
   // PC.printf("%f %f %f \n\r",TIME1_Current, DEMANDED_Current,
   // MOTOR_Current);
   //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
@@ -313,8 +322,8 @@ void SERIAL_Print() {
   // ENCODER_RPM, ENCODER_Count,ENCODER_Change);
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
-  PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
-            TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
+  //   PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
+  //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
   //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position:
   //   %f
   //   "
@@ -419,7 +428,7 @@ void ENCODER_Check() {
 void LSWITCH_Home() {
   while (LSWITCH_Complete_Home == 0) {
     while (LSWITCH_Flag == 0) {
-      SetSpeed(40); // Lift platform to hit LSWTICH
+      SetSpeed(30); // Lift platform to hit LSWTICH
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
@@ -429,7 +438,7 @@ void LSWITCH_Home() {
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 0) {
-      SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
+      SetSpeed(30); // Lift platform to hit LSWTICH at slower speed
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
