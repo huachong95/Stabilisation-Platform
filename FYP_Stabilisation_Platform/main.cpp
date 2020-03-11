@@ -15,11 +15,12 @@
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.01
 #define SYSTEMTIMEOUTINTERVAL 0.1
-#define MOTOR_WRITE_RATE 0.01   // Write Rate of Motor
-#define PID_POSITION_RATE 0.1   // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.01  // 500HzSample Rate of PID_Velocity
-#define PID_CURRENT_RATE 0.0002 // 5000HzSample Rate of PID_Current
-#define CURRENT_MAX_RANGE 20    // Max Amps supported by Current Sensor
+#define MOTOR_WRITE_RATE 0.01     // Write Rate of Motor
+#define PID_POSITION_RATE 0.1     // 50Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.01    // 500HzSample Rate of PID_Velocity
+#define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
+#define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
+#define LEADSCREW_INITIAL_POS 200 // Leadscrew initial position
 
 #include "PID.h"
 #include "mbed.h"
@@ -38,7 +39,7 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(20, 1500.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(6.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
@@ -93,6 +94,7 @@ int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
 int Cascade_Mode = 1;
+bool LEADSCREW_Initialisation = 0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
 bool PID_CURRENT_INITIALISED = 0;
@@ -156,6 +158,15 @@ int main() {
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
+    while (LEADSCREW_Initialisation == 0) {
+      PID_Position.setSetPoint(LEADSCREW_INITIAL_POS);
+      PID_Position.setProcessValue(LEADSCREW_Position);
+      MOTOR_Speed_PID = -PID_Position.compute();
+      SetSpeed(MOTOR_Speed_PID);
+      if (LEADSCREW_Position == LEADSCREW_INITIAL_POS) {
+        LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
+      }
+    }
     if (SERIAL_Read_Flag) {
       SERIAL_SystemStatus_ISR.attach(&SERIAL_SystemStatus,
                                      SYSTEMTIMEOUTINTERVAL);
@@ -464,26 +475,24 @@ void LSWITCH_Home() {
   while (LSWITCH_Complete_Home == 0) {
     while (LSWITCH_Flag == 0) {
       SetSpeed(40); // Lift platform to hit LSWTICH
-      PC.printf("1");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
       SetSpeed(-35); // Lower platform to release LSWITCH
-            PC.printf("2");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 0) {
       SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
-            PC.printf("3");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
       SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
-            PC.printf("4");
     }
+    SetSpeed(-35);
+    thread_sleep_for(200); // initial leadscrew distance buffer
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     LEADSCREW_Position = 0; // Resets Leadscrew position
