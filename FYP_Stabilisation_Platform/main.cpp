@@ -464,21 +464,25 @@ void LSWITCH_Home() {
   while (LSWITCH_Complete_Home == 0) {
     while (LSWITCH_Flag == 0) {
       SetSpeed(40); // Lift platform to hit LSWTICH
+      PC.printf("1");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
       SetSpeed(-35); // Lower platform to release LSWITCH
+            PC.printf("2");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 0) {
       SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
+            PC.printf("3");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 1) {
       SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
+            PC.printf("4");
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
