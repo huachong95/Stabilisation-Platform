@@ -38,7 +38,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(20, 5.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(6.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -145,8 +145,8 @@ int main() {
   CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
                                             //   PID_Position_Initialisation();
-//   PID_Velocity_Initialisation();
-    PID_Current_Initialisation();
+  PID_Velocity_Initialisation();
+    // PID_Current_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
@@ -282,9 +282,9 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-    PC.printf("%f %f %f \n\r",TIME1_Current, DEMANDED_Current,
-    MOTOR_Current);
-//   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity, ENCODER_RPM);
+    // PC.printf("%f %f %f \n\r",TIME1_Current, DEMANDED_Current,
+    // MOTOR_Current);
+  PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity, ENCODER_RPM);
   // PC.printf("AnalogIn: %f
   // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
   //    printf("%f_%f \n",L_PWMSpeed,R_PWMSpeed);

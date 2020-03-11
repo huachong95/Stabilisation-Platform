@@ -241,7 +241,7 @@ float PID::compute() {
     //Remember the input for the derivative calculation next time.
     prevProcessVariable_  = scaledPV;
 //  float output=(controllerOutput_ * outSpan_) - outMin_;
-float output=map2(controllerOutput_,-1.0,1.0,-100,100);
+float output=map2(controllerOutput_,-1.0,1.0,outMin_,outMax_);
     //Scale the output from percent span back out to a real world number.
     //  printf(" scaledPV: %f scaledSP: %f error:%f accError: %f controller output: %f output: %f\n\r",scaledPV,scaledSP,error,accError_,controllerOutput_, output);
     return (output);
