@@ -40,7 +40,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(10, 1500.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(6.0, 200.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -484,7 +484,7 @@ void ENCODER_Check() {
 void LSWITCH_Home() {
   while (LSWITCH_Complete_Home == 0) {
     while (LSWITCH_Flag == 0) {
-      SetSpeed(40); // Lift platform to hit LSWTICH
+      SetSpeed(30); // Lift platform to hit LSWTICH
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
@@ -494,7 +494,7 @@ void LSWITCH_Home() {
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     while (LSWITCH_Flag == 0) {
-      SetSpeed(40); // Lift platform to hit LSWTICH at slower speed
+      SetSpeed(30); // Lift platform to hit LSWTICH at slower speed
     }
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
