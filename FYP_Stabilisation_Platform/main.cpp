@@ -20,6 +20,7 @@
 #define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
 #define LEADSCREW_INITIAL_POS 150 // Initial Leadscrew Position
+#define LEADSCREW_MODE 1          // 1==Position, 2==Velocity, 3==Current
 
 #include "PID.h"
 #include "mbed.h"
@@ -91,7 +92,7 @@ float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
-int LEADSCREW_Mode = 2; // 1==Position, 2==Velocity, 3==Current
+int LEADSCREW_Mode = LEADSCREW_MODE; // 1==Position, 2==Velocity, 3==Current
 bool LEADSCREW_Initialisation = 0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
@@ -154,6 +155,9 @@ int main() {
 
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
+      while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
+        SetSpeed(-45);
+      }
       if (PID_Position_Flag) {
         // Imposing limits to leadscrew demanded position
         if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
@@ -166,13 +170,15 @@ int main() {
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Position_Flag = 0;
       }
-      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS-5)&&((LEADSCREW_Position <= LEADSCREW_INITIAL_POS+5))) {
+      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 5) &&
+          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 5))) {
         SetSpeed(0);
         LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
       }
     }
-    
+
     if (SERIAL_Read_Flag) {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
@@ -252,11 +258,13 @@ int main() {
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Position_Flag = 0;
       } else if ((LEADSCREW_Mode == 2) && (PID_Velocity_Flag)) {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
         MOTOR_Speed_PID = -PID_Velocity.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Velocity_Flag = 0;
       } else if ((LEADSCREW_Mode == 3) && (PID_Current_Flag)) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
           DEMANDED_Current = CURRENT_MAX_RANGE;
@@ -268,6 +276,7 @@ int main() {
         PID_Current.setProcessValue(MOTOR_Current);
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Current_Flag = 0;
       }
     } else {
       if (MOTOR_Write_Flag) {
