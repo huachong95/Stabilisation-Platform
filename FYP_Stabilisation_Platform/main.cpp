@@ -91,7 +91,7 @@ float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
-int LEADSCREW_Mode = 1; // 1==Position, 2==Velocity, 3==Current
+int LEADSCREW_Mode = 2; // 1==Position, 2==Velocity, 3==Current
 bool LEADSCREW_Initialisation = 0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
@@ -167,10 +167,12 @@ int main() {
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
       }
-      if (LEADSCREW_Position == LEADSCREW_INITIAL_POS) {
+      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS-5)&&((LEADSCREW_Position <= LEADSCREW_INITIAL_POS+5))) {
+        SetSpeed(0);
         LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
       }
     }
+    
     if (SERIAL_Read_Flag) {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
