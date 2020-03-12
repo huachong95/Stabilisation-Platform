@@ -20,7 +20,7 @@
 #define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
 #define LEADSCREW_INITIAL_POS 150 // Initial Leadscrew Position
-#define LEADSCREW_MODE 1          // 1==Position, 2==Velocity, 3==Current
+#define LEADSCREW_MODE 2          // 1==Position, 2==Velocity, 3==Current
 
 #include "PID.h"
 #include "mbed.h"
@@ -39,8 +39,8 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-PID PID_Position(10, 1500.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(4, 500.0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -156,7 +156,7 @@ int main() {
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
       while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
-        SetSpeed(-45);
+        SetSpeed(-35);
       }
       if (PID_Position_Flag) {
         // Imposing limits to leadscrew demanded position
@@ -457,7 +457,7 @@ void LSWITCH_Home() {
       SetSpeed(-35); // Lower platform to hit LSWTICH at slower speed
     }
     SetSpeed(-35);
-    thread_sleep_for(350); // Creates offset gap from LSWTICH
+    thread_sleep_for(200); // Creates offset gap from LSWTICH
     SetSpeed(0);
     thread_sleep_for(LSWITCH_SLEEP_DURATION);
     LEADSCREW_Position = 0; // Resets Leadscrew position
