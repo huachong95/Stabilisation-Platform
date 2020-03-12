@@ -39,8 +39,8 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-PID PID_Position(10, 1500.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4.0, 200.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(4.0, 500.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
@@ -159,6 +159,9 @@ int main() {
 
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
+      while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
+        SetSpeed(-35);
+      }
       if (PID_Position_Flag) {
         // Imposing limits to leadscrew demanded position
         if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
@@ -171,8 +174,10 @@ int main() {
         PID_Position.setProcessValue(LEADSCREW_Position);
         MOTOR_Speed_PID = -PID_Position.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Position_Flag = 0;
       }
-      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS-5)&&((LEADSCREW_Position <= LEADSCREW_INITIAL_POS+5))) {
+      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 5) &&
+          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 5))) {
         SetSpeed(0);
         LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
       }
@@ -253,14 +258,17 @@ int main() {
       }
       }
     }
-    if ((Cascade_Mode==3)&&((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED) &&
-        (PID_POSITION_INITIALISED))) {
+    if ((Cascade_Mode == 3) &&
+        ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED) &&
+         (PID_POSITION_INITIALISED))) {
 
-    } else if ((Cascade_Mode==2)&&((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED))) {
+    } else if ((Cascade_Mode == 2) &&
+               ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED))) {
       if (PID_Velocity_Flag) {
         PID_Velocity.setSetPoint(DEMANDED_Velocity);
         PID_Velocity.setProcessValue(ENCODER_RPM);
         ERROR_Vel = -PID_Velocity.compute();
+        PID_Velocity_Flag = 0;
       }
       if (PID_Current_Flag) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
@@ -273,9 +281,10 @@ int main() {
         PID_Current.setProcessValue(MOTOR_Current);
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Current_Flag = 0;
       }
 
-    } else if ((Cascade_Mode==1)&&(PID_CURRENT_INITIALISED)) {
+    } else if ((Cascade_Mode == 1) && (PID_CURRENT_INITIALISED)) {
       if (PID_Current_Flag) {
         if (DEMANDED_Current > CURRENT_MAX_RANGE) {
           DEMANDED_Current = CURRENT_MAX_RANGE;
@@ -287,6 +296,7 @@ int main() {
         PID_Current.setProcessValue(MOTOR_Current);
         MOTOR_Speed_PID = PID_Current.compute();
         SetSpeed(MOTOR_Speed_PID);
+        PID_Current_Flag = 0;
       }
     }
     // if ((PID_POSITION_INITIALISED) || (PID_VELOCITY_INITIALISED) ||
