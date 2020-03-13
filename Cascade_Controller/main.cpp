@@ -40,8 +40,8 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4.0, 500.0, 0.0, PID_VELOCITY_RATE);
-PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
+PID PID_Velocity(6.0, 500.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Current(10,4000.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
 Ticker SERIAL_SystemStatus_ISR;
@@ -93,7 +93,7 @@ float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
 
-int Cascade_Mode = 1;
+int Cascade_Mode = 2; // 1=Current, 2==C&V 3==C&V&P
 bool LEADSCREW_Initialisation = 0;
 bool PID_POSITION_INITIALISED = 0;
 bool PID_VELOCITY_INITIALISED = 0;
@@ -562,7 +562,7 @@ void PID_Position_Initialisation() {
 void PID_Velocity_Initialisation() {
   PID_Velocity_TISR.attach(&PID_Velocity_ISR, PID_VELOCITY_RATE);
   PID_Velocity.setInputLimits(-MAX_MOTORSPEED, MAX_MOTORSPEED);
-  PID_Velocity.setOutputLimits(-5, 5);
+  PID_Velocity.setOutputLimits(-10, 10);
   PID_Velocity.setMode(AUTO_MODE);
   PID_VELOCITY_INITIALISED = 1;
 }
