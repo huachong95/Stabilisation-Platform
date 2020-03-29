@@ -2,7 +2,7 @@
 #define R_EN_PIN D8
 #define L_PWM_PIN D6
 #define R_PWM_PIN D9
-#define JOYSTICK_PIN A0
+#define JOYSTICK_PIN A5
 #define L_SWITCH_PIN D12
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
@@ -13,15 +13,15 @@
 #define LEADSCREW_MAX_RANGE 330
 #define MAX_MOTORSPEED 4500
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
-#define SERIAL_PRINT_INTERVAL 0.01
+#define SERIAL_PRINT_INTERVAL 0.02
 #define SYSTEMTIMEOUTINTERVAL 0.1
 #define MOTOR_WRITE_RATE 0.01     // Write Rate of Motor
 #define PID_POSITION_RATE 0.1     // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.01    // 500HzSample Rate of PID_Velocity
+#define PID_VELOCITY_RATE 0.001    // 500HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0001   // 10000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
 #define LEADSCREW_INITIAL_POS 150 // Leadscrew initial position
-#define CASCADE_MODE 1            // 1==C, 2==C&V 3==C&V&P
+#define CASCADE_MODE 2            // 1==C, 2==C&V 3==C&V&P
 
 #include "PID.h"
 #include "mbed.h"
@@ -41,7 +41,7 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
 PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(1, 3000.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(1.1, 30.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 
 Ticker MOTOR_TISR;
@@ -143,8 +143,8 @@ int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
   MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
-  L_PWM.period(0.00004);
-  R_PWM.period(0.00004);
+  L_PWM.period(0.00008);
+  R_PWM.period(0.00008);
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
@@ -178,8 +178,8 @@ int main() {
         SetSpeed(MOTOR_Speed_PID);
         PID_Position_Flag = 0;
       }
-      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 5) &&
-          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 5))) {
+      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
+          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 15))) {
         SetSpeed(0);
         LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
       }
@@ -486,11 +486,12 @@ void LSWITCH_Home() {
 }
 
 float CURRENT_Sensor_Offset() {
+    thread_sleep_for(200);
   float ADC_Accumulated_Readings = 0;
-  for (int counter = 0; counter < 500; counter++) {
+  for (int counter = 0; counter < 1000; counter++) {
     ADC_Accumulated_Readings += CURRENT_Sensor.read();
   }
-  float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings / 500);
+  float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings /1000);
   return Averaged_Current_Offset;
 }
 void CURRENT_Sensor_Read() {
@@ -526,7 +527,7 @@ void PID_Position_Initialisation() {
 void PID_Velocity_Initialisation() {
   PID_Velocity_TISR.attach(&PID_Velocity_ISR, PID_VELOCITY_RATE);
   PID_Velocity.setInputLimits(-MAX_MOTORSPEED, MAX_MOTORSPEED);
-  PID_Velocity.setOutputLimits(-100, 100);
+  PID_Velocity.setOutputLimits(-20, 20);
   PID_Velocity.setMode(AUTO_MODE);
   PID_VELOCITY_INITIALISED = 1;
 }
