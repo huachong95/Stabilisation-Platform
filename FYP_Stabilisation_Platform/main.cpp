@@ -13,13 +13,13 @@
 #define LEADSCREW_MAX_RANGE 330
 #define MAX_MOTORSPEED 4500
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
-#define SERIAL_PRINT_INTERVAL 0.01
+#define SERIAL_PRINT_INTERVAL 0.02
 #define MOTOR_WRITE_RATE 0.01     // Write Rate of Motor
-#define PID_POSITION_RATE 0.1     // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.01    // 500HzSample Rate of PID_Velocity
-#define PID_CURRENT_RATE 0.0002   // 5000HzSample Rate of PID_Current
+#define PID_POSITION_RATE 0.01     // 100Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.001    // 1000HzSample Rate of PID_Velocity
+#define PID_CURRENT_RATE 0.0001   // 10000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 150 // Initial Leadscrew Position
+#define LEADSCREW_INITIAL_POS 210 // Initial Leadscrew Position
 #define LEADSCREW_MODE 1          // 1==Position, 2==Velocity, 3==Current
 
 #include "PID.h"
@@ -39,8 +39,8 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-PID PID_Position(8, 1400.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(4, 500.0, 0, PID_VELOCITY_RATE);
+PID PID_Position(9, 1400.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(8, 500.0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
