@@ -21,7 +21,7 @@
 #define PID_CURRENT_RATE 0.0001   // 10000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
 #define LEADSCREW_INITIAL_POS 150 // Leadscrew initial position
-#define CASCADE_MODE 2            // 1==C, 2==C&V 3==C&V&P
+#define CASCADE_MODE 1            // 1==C, 2==C&V 3==C&V&P
 
 #include "PID.h"
 #include "mbed.h"
@@ -141,7 +141,6 @@ void Cascade_Initialisation(int Cascade_Mode);
 
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
-                           //   JOYSTICK_TISR.attach(&JOYSTICK_ISR_Read, 0.005),
   MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
   L_PWM.period(0.00004);
@@ -535,7 +534,7 @@ void PID_Velocity_Initialisation() {
 void PID_Current_Initialisation() {
   PID_Current_TISR.attach(&PID_Current_ISR, PID_CURRENT_RATE);
   PID_Current.setInputLimits(-CURRENT_MAX_RANGE, CURRENT_MAX_RANGE);
-  PID_Current.setOutputLimits(-20, 20);
+  PID_Current.setOutputLimits(-100, 100);
   PID_Current.setMode(AUTO_MODE);
   PID_CURRENT_INITIALISED = 1;
 }

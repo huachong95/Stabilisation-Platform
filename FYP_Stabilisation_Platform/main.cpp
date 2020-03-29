@@ -39,7 +39,7 @@ DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 
-PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(8, 1400.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(4, 500.0, 0, PID_VELOCITY_RATE);
 PID PID_Current(60, 1.0, 0, PID_CURRENT_RATE);
 Ticker MOTOR_TISR;
@@ -137,8 +137,10 @@ int main() {
                            //   JOYSTICK_TISR.attach(&JOYSTICK_ISR_Read, 0.005),
   MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
-  L_PWM.period(0.00004);
-  R_PWM.period(0.00004);
+//   L_PWM.period(0.00004);
+//   R_PWM.period(0.00004);
+  L_PWM.period(0.00008);
+  R_PWM.period(0.00008);
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
@@ -172,8 +174,8 @@ int main() {
         SetSpeed(MOTOR_Speed_PID);
         PID_Position_Flag = 0;
       }
-      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 5) &&
-          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 5))) {
+      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
+          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 15))) {
         SetSpeed(0);
         LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
       }
@@ -313,11 +315,11 @@ void SERIAL_Read() {
     SERIAL_Read_Flag = 1;
   }
 }
+
 void SERIAL_Print() {
   if (LEADSCREW_Mode == 1) {
-    PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Position,
-              LEADSCREW_Position);
-  } else if (LEADSCREW_Mode == 2) {
+      PC.printf("%f %f %f \n\r",TIME1_Current,DEMANDED_Position,LEADSCREW_Position);
+  } else if(LEADSCREW_Mode==2){
     PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity, ENCODER_RPM);
   } else if (LEADSCREW_Mode == 3) {
     PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
