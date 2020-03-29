@@ -201,7 +201,7 @@ int main() {
         */
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");                // Expects: '\r'
         MOTOR_Speed = -atoi(payload);
         break;
       }
@@ -210,7 +210,7 @@ int main() {
         // Expects "P,150,\r"
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");                // Expects: '\r'
         DEMANDED_Position = atoi(payload);
         break;
       }
@@ -226,7 +226,7 @@ int main() {
       case 'C': {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");                // Expects: '\r'
         DEMANDED_Current = (float)(atoi(payload)) / 100;
         break;
       }
@@ -234,7 +234,7 @@ int main() {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload1 = strtok(NULL, ",");              // Expects:<payload>
         char *payload2 = strtok(NULL, ",");              // Expects:<payload>
-        char *footer = strtok(NULL, ",");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");                // Expects: '\r'
         DEMANDED_Current = (float)(atoi(payload1)) / 100;
         DEMANDED_Velocity = (float)(atoi(payload2));
         break;
