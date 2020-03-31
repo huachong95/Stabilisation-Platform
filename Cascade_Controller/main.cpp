@@ -16,12 +16,12 @@
 #define SERIAL_PRINT_INTERVAL 0.02
 #define SYSTEMTIMEOUTINTERVAL 0.1
 #define MOTOR_WRITE_RATE 0.01     // Write Rate of Motor
-#define PID_POSITION_RATE 0.1     // 50Hz Sample Rate of PID_Position
-#define PID_VELOCITY_RATE 0.001    // 500HzSample Rate of PID_Velocity
+#define PID_POSITION_RATE 0.01    // 100Hz Sample Rate of PID_Position
+#define PID_VELOCITY_RATE 0.001   // 1000HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0001   // 10000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 150 // Leadscrew initial position
-#define CASCADE_MODE 2            // 1==C, 2==C&V 3==C&V&P
+#define LEADSCREW_INITIAL_POS 210 // Leadscrew initial position
+#define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
 
 #include "PID.h"
 #include "mbed.h"
@@ -39,9 +39,9 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
-
-PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(1.1, 30.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
+// PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(1.0, 20.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 
 Ticker MOTOR_TISR;
@@ -104,11 +104,13 @@ bool PID_Position_Flag = 0;
 bool PID_Velocity_Flag = 0;
 bool PID_Current_Flag = 0;
 float ERROR_Vel = 0.0;
+float ERROR_Pos = 0.0;
 
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
 float DEMANDED_Position = LEADSCREW_INITIAL_POS;
 float DEMANDED_Velocity = 0.0;
+float DEMANDED_Velocity_Total = 0.0;
 float DEMANDED_Current = 0.0;
 float DEMANDED_Current_Total = 0.0;
 float MOTOR_Speed_PID = 0.0;
@@ -134,9 +136,13 @@ void PID_Position_ISR();
 void PID_Velocity_ISR();
 void PID_Current_ISR();
 void CURRENT_SENSOR_ISR_Read();
+
 void PID_Position_Initialisation();
 void PID_Velocity_Initialisation();
 void PID_Current_Initialisation();
+void PID_Position_Computation();
+void PID_Velocity_Computation();
+void PID_Current_Computation();
 void Cascade_Initialisation(int Cascade_Mode);
 
 int main() {
@@ -165,17 +171,8 @@ int main() {
         SetSpeed(-35);
       }
       if (PID_Position_Flag) {
-        // Imposing limits to leadscrew demanded position
-        if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
-          DEMANDED_Position = LEADSCREW_MAX_RANGE;
-        }
-        if (DEMANDED_Position < 0) {
-          DEMANDED_Position = 0;
-        }
-        PID_Position.setSetPoint(DEMANDED_Position);
-        PID_Position.setProcessValue(LEADSCREW_Position);
-        MOTOR_Speed_PID = -PID_Position.compute();
-        SetSpeed(MOTOR_Speed_PID);
+        PID_Position_Computation();
+        SetSpeed(ERROR_Pos);
         PID_Position_Flag = 0;
       }
       if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
@@ -201,7 +198,7 @@ int main() {
         */
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, "\r");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");               // Expects: '\r'
         MOTOR_Speed = -atoi(payload);
         break;
       }
@@ -210,7 +207,7 @@ int main() {
         // Expects "P,150,\r"
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, "\r");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");               // Expects: '\r'
         DEMANDED_Position = atoi(payload);
         break;
       }
@@ -226,7 +223,7 @@ int main() {
       case 'C': {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload = strtok(NULL, ",");               // Expects:<payload>
-        char *footer = strtok(NULL, "\r");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");               // Expects: '\r'
         DEMANDED_Current = (float)(atoi(payload)) / 100;
         break;
       }
@@ -234,9 +231,20 @@ int main() {
         char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
         char *payload1 = strtok(NULL, ",");              // Expects:<payload>
         char *payload2 = strtok(NULL, ",");              // Expects:<payload>
-        char *footer = strtok(NULL, "\r");                // Expects: '\r'
+        char *footer = strtok(NULL, "\r");               // Expects: '\r'
         DEMANDED_Current = (float)(atoi(payload1)) / 100;
         DEMANDED_Velocity = (float)(atoi(payload2));
+        break;
+      }
+      case 'B': {
+        char *header = strtok(SERIAL_RXDataBuffer, ","); // Expects: '?'
+        char *payload1 = strtok(NULL, ",");              // Expects:<payload>
+        char *payload2 = strtok(NULL, ",");              // Expects:<payload>
+        char *payload3 = strtok(NULL, ",");              // Expects:<payload>
+        char *footer = strtok(NULL, "\r");               // Expects: '\r'
+        DEMANDED_Current = (float)(atoi(payload1)) / 100;
+        DEMANDED_Velocity = (float)(atoi(payload2));
+        DEMANDED_Position = (float)(atoi(payload3));
         break;
       }
 
@@ -263,42 +271,33 @@ int main() {
     if ((Cascade_Mode == 3) &&
         ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED) &&
          (PID_POSITION_INITIALISED))) {
+      if (PID_Position_Flag) {
+        PID_Position_Computation();
+        PID_Position_Flag = 0;
+      }
+      if (PID_Velocity_Flag) {
+        PID_Velocity_Computation();
+        PID_Velocity_Flag = 0;
+      }
+      if (PID_Current_Flag) {
+        PID_Current_Computation();
+        PID_Current_Flag = 0;
+      }
 
     } else if ((Cascade_Mode == 2) &&
                ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED))) {
       if (PID_Velocity_Flag) {
-        PID_Velocity.setSetPoint(DEMANDED_Velocity);
-        PID_Velocity.setProcessValue(ENCODER_RPM);
-        ERROR_Vel = -PID_Velocity.compute();
+        PID_Velocity_Computation();
         PID_Velocity_Flag = 0;
       }
       if (PID_Current_Flag) {
-        if (DEMANDED_Current > CURRENT_MAX_RANGE) {
-          DEMANDED_Current = CURRENT_MAX_RANGE;
-        }
-        if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
-          DEMANDED_Current = -CURRENT_MAX_RANGE;
-        }
-        DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
-        PID_Current.setSetPoint(DEMANDED_Current_Total);
-        PID_Current.setProcessValue(MOTOR_Current);
-        MOTOR_Speed_PID = PID_Current.compute();
-        SetSpeed(MOTOR_Speed_PID);
+        PID_Current_Computation();
         PID_Current_Flag = 0;
       }
 
     } else if ((Cascade_Mode == 1) && (PID_CURRENT_INITIALISED)) {
       if (PID_Current_Flag) {
-        if (DEMANDED_Current > CURRENT_MAX_RANGE) {
-          DEMANDED_Current = CURRENT_MAX_RANGE;
-        }
-        if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
-          DEMANDED_Current = -CURRENT_MAX_RANGE;
-        }
-        PID_Current.setSetPoint(DEMANDED_Current);
-        PID_Current.setProcessValue(MOTOR_Current);
-        MOTOR_Speed_PID = PID_Current.compute();
-        SetSpeed(MOTOR_Speed_PID);
+        PID_Current_Computation();
         PID_Current_Flag = 0;
       }
     }
@@ -338,8 +337,8 @@ void SERIAL_Print() {
     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
   } else if (Cascade_Mode == 3) {
-    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current,
-              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM, DEMANDED_Position,
+    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
+              MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM, DEMANDED_Position,
               LEADSCREW_Position);
   }
   //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
@@ -486,12 +485,12 @@ void LSWITCH_Home() {
 }
 
 float CURRENT_Sensor_Offset() {
-    thread_sleep_for(200);
+  thread_sleep_for(200);
   float ADC_Accumulated_Readings = 0;
   for (int counter = 0; counter < 1000; counter++) {
     ADC_Accumulated_Readings += CURRENT_Sensor.read();
   }
-  float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings /1000);
+  float Averaged_Current_Offset = 0.5 - (ADC_Accumulated_Readings / 1000);
   return Averaged_Current_Offset;
 }
 void CURRENT_Sensor_Read() {
@@ -520,7 +519,7 @@ void Cascade_Initialisation(int mode) {
 void PID_Position_Initialisation() {
   PID_Position_TISR.attach(&PID_Position_ISR, PID_POSITION_RATE);
   PID_Position.setInputLimits(0, LEADSCREW_MAX_RANGE);
-  PID_Position.setOutputLimits(-100, 100);
+  PID_Position.setOutputLimits(-2000, 2000);
   PID_Position.setMode(AUTO_MODE);
   PID_POSITION_INITIALISED = 1;
 }
@@ -539,12 +538,53 @@ void PID_Current_Initialisation() {
   PID_Current.setMode(AUTO_MODE);
   PID_CURRENT_INITIALISED = 1;
 }
+
+void PID_Position_Computation() {
+  // Imposing limits to leadscrew demanded position
+  if (DEMANDED_Position > LEADSCREW_MAX_RANGE) {
+    DEMANDED_Position = LEADSCREW_MAX_RANGE;
+  }
+  if (DEMANDED_Position < 0) {
+    DEMANDED_Position = 0;
+  }
+  PID_Position.setSetPoint(DEMANDED_Position);
+  PID_Position.setProcessValue(LEADSCREW_Position);
+  ERROR_Pos = -PID_Position.compute();
+}
+
+void PID_Velocity_Computation() {
+  if (DEMANDED_Velocity > MAX_MOTORSPEED) {
+    DEMANDED_Velocity = MAX_MOTORSPEED;
+  } else if (DEMANDED_Velocity < -MAX_MOTORSPEED) {
+    DEMANDED_Velocity = -MAX_MOTORSPEED;
+  }
+  DEMANDED_Velocity_Total = DEMANDED_Velocity - ERROR_Pos;
+  PID_Velocity.setSetPoint(DEMANDED_Velocity_Total);
+  PID_Velocity.setProcessValue(ENCODER_RPM);
+  ERROR_Vel = -PID_Velocity.compute();
+}
+
+void PID_Current_Computation() {
+  if (DEMANDED_Current > CURRENT_MAX_RANGE) {
+    DEMANDED_Current = CURRENT_MAX_RANGE;
+  }
+  if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
+    DEMANDED_Current = -CURRENT_MAX_RANGE;
+  }
+  DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
+  PID_Current.setSetPoint(DEMANDED_Current_Total);
+  PID_Current.setProcessValue(MOTOR_Current);
+  MOTOR_Speed_PID = PID_Current.compute();
+  SetSpeed(MOTOR_Speed_PID);
+}
+
 void SERIAL_SystemStatus() {
   DEMANDED_Current = 0;
   DEMANDED_Velocity = 0;
   DEMANDED_Position = LEADSCREW_Position;
   SetSpeed(0);
 }
+
 // ISR Functions
 void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
 void MOTOR_ISR_Write() { MOTOR_Write_Flag = 1; }
