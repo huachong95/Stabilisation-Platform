@@ -11,8 +11,6 @@
 #include "mbed.h"
 #include "platform/mbed_thread.h"
 
-// Blinking rate in milliseconds
-#define BLINKING_RATE_MS 500
 RawSerial PC(USBTX, USBRX, 115200); // tx, rx for CoolTerm output
 DigitalOut led(LED1);
 BNO055 imu1(D14, D15);
@@ -38,6 +36,10 @@ float y_ddot = 0.0;
 
 float Y_DDOT = 0.0;
 float Z_DDOT = 0.0;
+float Z_DDOT_Fil5 = 0.0;
+float Z_DDOT_Fil4 = 0.0;
+float Z_DDOT_Fil3 = 0.0;
+float Z_DDOT_Fil2 = 0.0;
 
 // Finite Difference Implementation Variables
 float FD_Acc_y[4] = {0, 0, 0, 0};
@@ -50,6 +52,10 @@ float FD_OutputVel_Fil[2] = {0, 0};
 float FD_OutputPos_Fil[2] = {0, 0};
 float FD_OutputVel_Unfiltered[2] = {0, 0};
 float FD_OutputPos_Unfiltered[2] = {0, 0};
+float MA5_Data[5] = {0, 0, 0, 0, 0};
+float MA4_Data[4] = {0, 0, 0, 0};
+float MA3_Data[3] = {0, 0, 0};
+float MA2_Data[2] = {0, 0};
 
 const float A_filter_alpha = 0.975;
 const float V_filter_alpha = 1;
@@ -63,12 +69,15 @@ void IMU_ISR();
 void SERIAL_Print();
 void SERIAL_Print_ISR();
 void FD_Computation();
+float Moving_Average5(float data);
+float Moving_Average4(float data);
+float Moving_Average3(float data);
+float Moving_Average2(float data);
 float map(float in, float inMin, float inMax, float outMin, float outMax);
 
 int main() {
   t.start();
   PC.baud(115200);
-  PC.printf("BNO055 Hello World\r\n\r\n");
   led = 1;
   // Reset the BNO055
   imu1.reset();
@@ -76,20 +85,10 @@ int main() {
   ANGLE_ISR.attach(&IMU_ISR, IMU_INTERVAL);
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
   FD_Computation_ISR.attach(&FD_Computation, SAMPLING_TIME);
-  // Check that the BNO055 is connected and flash LED if not
-  //   if (!imu1.check())
-  //     while (true) {
-  //       PC.printf("Waiting for IMU Connection \n\r");
-  //       thread_sleep_for(100);
-  //     }
 
   while (true) {
     imu1.setmode(OPERATION_MODE_NDOF);
 
-    if (SERIAL_Print_Flag) {
-      SERIAL_Print();
-      SERIAL_Print_Flag = 0;
-    }
     if (IMU_Flag) {
       IMU_Angle();
       //   IMU_Acceleration();
@@ -98,6 +97,10 @@ int main() {
       FD_Computation();
 
       IMU_Flag = 0;
+    }
+    if (SERIAL_Print_Flag) {
+      SERIAL_Print();
+      SERIAL_Print_Flag = 0;
     }
   }
 }
@@ -159,9 +162,13 @@ void Acceleration_Computation() {
   x_ddot = IMU_X_Linear_Acc * cos(IMU_Roll) + IMU_Z_Linear_Acc * sin(IMU_Roll);
 
   Y_DDOT = sqrt((x_ddot * x_ddot) + (y_ddot * y_ddot));
+    Z_DDOT_Fil5 = Moving_Average5(Z_DDOT);
+//   Z_DDOT_Fil4 = Moving_Average4(Z_DDOT);
+  //   Z_DDOT_Fil3 = Moving_Average3(Z_DDOT);
+  //   Z_DDOT_Fil2 = Moving_Average2(Z_DDOT);
 }
 void FD_Computation() {
-  FD_Acc_u[0] = Z_DDOT; // Updates new acceleration result
+  FD_Acc_u[0] = Z_DDOT_Fil4; // Updates new acceleration result
   FD_Acc_y[0] = 0.9038 * FD_Acc_u[0] - 0.2216 * FD_Acc_u[1] -
                 0.9049 * FD_Acc_u[2] + 0.2205 * FD_Acc_u[3] +
                 0.03077 * FD_Acc_y[1] + 0.8471 * FD_Acc_y[2] -
@@ -209,6 +216,35 @@ void FD_Computation() {
   FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
   FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
 }
+
+float Moving_Average5(float data) {
+  MA5_Data[0] =
+      (data + MA5_Data[1] + MA5_Data[2] + MA5_Data[3] + MA5_Data[4]) / 5;
+  MA5_Data[4] = MA5_Data[3];
+  MA5_Data[3] = MA5_Data[2];
+  MA5_Data[2] = MA5_Data[1];
+  MA5_Data[1] = MA5_Data[0];
+  return MA5_Data[0];
+}
+float Moving_Average4(float data) {
+  MA4_Data[0] = (data + MA4_Data[1] + MA4_Data[2] + MA4_Data[3]) / 4;
+  MA4_Data[3] = MA4_Data[2];
+  MA4_Data[2] = MA4_Data[1];
+  MA4_Data[1] = MA4_Data[0];
+  return MA4_Data[0];
+}
+float Moving_Average3(float data) {
+  MA3_Data[0] = (data + MA3_Data[1] + MA3_Data[2]) / 3;
+  MA3_Data[2] = MA3_Data[1];
+  MA3_Data[1] = MA3_Data[0];
+  return MA3_Data[0];
+}
+float Moving_Average2(float data) {
+  MA2_Data[0] = (data + MA2_Data[1]) / 2;
+  MA2_Data[1] = MA2_Data[0];
+  return MA2_Data[0];
+}
+
 void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
 void IMU_ISR() { IMU_Flag = 1; }
 void SERIAL_Print() {
@@ -226,6 +262,9 @@ void SERIAL_Print() {
             FD_Acc_u[0], FD_OutputAcc[0], FD_OutputAcc_Fil[0], FD_OutputVel[0],
             FD_OutputPos[0], FD_OutputVel_Unfiltered[0],
             FD_OutputPos_Unfiltered[0]);
+  //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(), FD_Acc_u[0],
+  //             Z_DDOT_Fil5, Z_DDOT_Fil4, Z_DDOT_Fil3, Z_DDOT_Fil2);
+
   // PC.printf("Pen: %5.2f,Pitch: %5.2f, Roll: %5.2f
   // \n\r",PEN_Angle,IMU_Pitch,IMU_Roll);
   //  PC.printf("X: %5.2f, Y: %5.2f Z: %5.2f
