@@ -1,4 +1,4 @@
-#define L_EN_PIN D7
+#define L_EN_PIN D10
 #define R_EN_PIN D8
 #define L_PWM_PIN D6
 #define R_PWM_PIN D9
