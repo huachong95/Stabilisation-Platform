@@ -4,12 +4,11 @@
 #include "serial.h"
 #include "sonar.h"
 #include <iostream>
-#include <stdio.h>
+#include <cstdio.h>
 
 
 int main()
 {
-//    wait(10);        //allows time for microcontroller system to powerup
     MOTOR_Init();   //initialises motors and motor thread
     SERIAL_Init();  //initialises serial thread
     LED_Init();     //initialises led thread
