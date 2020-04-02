@@ -245,7 +245,7 @@ int main() {
   PID_Position_Initialisation();
   Cascade_Initialisation(CASCADE_MODE);
   PID_Position_Initialisation();
-  SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
+  //   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
@@ -421,16 +421,18 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  if (Cascade_Mode == 1) {
-    PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
-  } else if (Cascade_Mode == 2) {
-    PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
-              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
-  } else if (Cascade_Mode == 3) {
-    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current,
-              DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
-              ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position);
-  }
+  //   if (Cascade_Mode == 1) {
+  //     PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current,
+  //     MOTOR_Current);
+  //   } else if (Cascade_Mode == 2) {
+  //     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
+  //               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
+  //   } else if (Cascade_Mode == 3) {
+  //     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current,
+  //               DEMANDED_Current_Total, MOTOR_Current,
+  //               DEMANDED_Velocity_Total, ENCODER_RPM, DEMANDED_Position,
+  //               LEADSCREW_Position);
+  //   }
 
   //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
   //   FD_Acc_u[0],
@@ -720,10 +722,13 @@ void IMU2_Acceleration() {
 }
 
 void IMU1_Linear_Acceleration() {
+  float t1 = TIME1.read();
   imu1.get_lia();
   IMU1_X_Linear_Acc = imu1.lia.x;
   IMU1_Y_Linear_Acc = imu1.lia.y;
   IMU1_Z_Linear_Acc = imu1.lia.z;
+  float t2 = TIME1.read() - t1;
+  PC.printf("%f \n\r", t2);
 }
 
 void IMU2_Linear_Acceleration() {
@@ -753,6 +758,7 @@ void Acceleration_Computation() {
   LENGTH_Acc = -Y_DDOT_Fil4 * sin(PEN_Angle) + Z_DDOT_Fil5 * cos(PEN_Angle);
 }
 void FD_Computation() {
+
   FD_Acc_u[0] = LENGTH_Acc; // Updates new acceleration result
   FD_Acc_y[0] = 0.9038 * FD_Acc_u[0] - 0.2216 * FD_Acc_u[1] -
                 0.9049 * FD_Acc_u[2] + 0.2205 * FD_Acc_u[3] +
