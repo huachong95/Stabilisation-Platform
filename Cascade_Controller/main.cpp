@@ -46,7 +46,8 @@ AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
 // PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(1.0, 20.0, 0.0, PID_VELOCITY_RATE);
-PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
+// PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
+PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 
 Ticker ANGLE_ISR;
 Ticker MOTOR_TISR;
@@ -421,21 +422,20 @@ void SERIAL_Read() {
 }
 void SERIAL_Print() {
   if (Cascade_Mode == 1) {
-    PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current,
-    MOTOR_Current);
+    PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
   } else if (Cascade_Mode == 2) {
     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
   } else if (Cascade_Mode == 3) {
     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current,
-    DEMANDED_Current_Total,
-              MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM,
-              DEMANDED_Position, LEADSCREW_Position);
+              DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
+              ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position);
   }
 
-//   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(), FD_Acc_u[0],
-//             FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
-//             PEN_Angle);
+  //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
+  //   FD_Acc_u[0],
+  //             FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
+  //             PEN_Angle);
   //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
   //   ENCODER_RPM);
   // PC.printf("AnalogIn: %f
@@ -589,7 +589,7 @@ float CURRENT_Sensor_Offset() {
   return Averaged_Current_Offset;
 }
 void CURRENT_Sensor_Read() {
-  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() - CURRENT_Offset;
+  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() + CURRENT_Offset;
   MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -27.5, 27.5);
   CURRENT_Filter_Data[1] = CURRENT_Filter_Alpha * MOTOR_Current_Raw +
                            (1 - CURRENT_Filter_Alpha) * CURRENT_Filter_Data[0];

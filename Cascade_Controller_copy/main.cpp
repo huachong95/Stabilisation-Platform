@@ -516,7 +516,7 @@ float CURRENT_Sensor_Offset() {
   return Averaged_Current_Offset;
 }
 void CURRENT_Sensor_Read() {
-  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() - CURRENT_Offset;
+  CURRENT_Sensor_ADC_Reading = CURRENT_Sensor.read() + CURRENT_Offset;
   MOTOR_Current_Raw = map(CURRENT_Sensor_ADC_Reading, 0.0, 1.0, -27.5, 27.5);
   CURRENT_Filter_Data[1] = CURRENT_Filter_Alpha * MOTOR_Current_Raw +
                            (1 - CURRENT_Filter_Alpha) * CURRENT_Filter_Data[0];
