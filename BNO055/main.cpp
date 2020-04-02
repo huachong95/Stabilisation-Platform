@@ -16,7 +16,7 @@ DigitalOut led(LED1);
 BNO055 imu1(D14, D15);
 BNO055 imu2(D5, D7);
 Ticker ANGLE_ISR;
-Ticker FD_Computation_ISR;
+// Ticker FD_Computation_ISR;
 Ticker SERIAL_PRINT;
 Timer t;
 
@@ -103,7 +103,7 @@ int main() {
   IMU_Init();
   ANGLE_ISR.attach(&IMU_ISR, IMU_INTERVAL);
   SERIAL_PRINT.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
-  FD_Computation_ISR.attach(&FD_Computation, SAMPLING_TIME);
+//   FD_Computation_ISR.attach(&FD_Computation, SAMPLING_TIME);
 
   while (true) {
     imu1.setmode(OPERATION_MODE_NDOF);
@@ -237,16 +237,16 @@ void FD_Computation() {
   FD_OutputPos[0] =
       SAMPLING_TIME / 2 * (FD_OutputVel[0] + FD_OutputVel[1]) + FD_OutputPos[1];
 
-  FD_OutputVel_Unfiltered[0] =
-      SAMPLING_TIME / 2 * (FD_OutputAcc[0] + FD_OutputAcc[1]) +
-      FD_OutputVel_Unfiltered[1];
+//   FD_OutputVel_Unfiltered[0] =
+//       SAMPLING_TIME / 2 * (FD_OutputAcc[0] + FD_OutputAcc[1]) +
+//       FD_OutputVel_Unfiltered[1];
   //   FD_OutputVel_Fil[0] =
   //       V_filter_alpha *
   //       (FD_OutputVel_Fil[1] + FD_OutputVel[0] - FD_OutputVel[1]);
-  FD_OutputPos_Unfiltered[0] =
-      SAMPLING_TIME / 2 *
-          (FD_OutputVel_Unfiltered[0] + FD_OutputVel_Unfiltered[1]) +
-      FD_OutputPos_Unfiltered[1];
+//   FD_OutputPos_Unfiltered[0] =
+//       SAMPLING_TIME / 2 *
+//           (FD_OutputVel_Unfiltered[0] + FD_OutputVel_Unfiltered[1]) +
+//       FD_OutputPos_Unfiltered[1];
   //   FD_OutputPos[0] =
   //       SAMPLING_TIME / 2 * (FD_OutputVel_Fil[0] + FD_OutputVel_Fil[1]) +
   //       FD_OutputPos[1];
@@ -257,10 +257,10 @@ void FD_Computation() {
   FD_OutputVel[1] = FD_OutputVel[0]; // Shifts the velocity results
   FD_OutputPos[1] = FD_OutputPos[0]; // Shifts the position results
   FD_OutputAcc_Fil[1] = FD_OutputAcc_Fil[0];
-  FD_OutputVel_Fil[1] = FD_OutputVel_Fil[0];
+//   FD_OutputVel_Fil[1] = FD_OutputVel_Fil[0];
   FD_OutputPos_Fil[1] = FD_OutputPos_Fil[0];
-  FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
-  FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
+//   FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
+//   FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
 }
 
 float Moving_Average5(float data) {
@@ -317,10 +317,15 @@ void SERIAL_Print() {
   //             FD_Acc_u[0], FD_OutputAcc[0], FD_OutputVel[0],
   //             FD_OutputVel_Fil[0], FD_OutputPos[0], FD_OutputPos_Fil[0]);
 
-  PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(),
-            FD_Acc_u[0], FD_OutputAcc[0], FD_OutputAcc_Fil[0], FD_OutputVel[0],
-            FD_OutputPos_Fil[0], FD_OutputVel_Unfiltered[0],
-            FD_OutputPos_Unfiltered[0],PEN_Angle);
+//   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(),
+//             FD_Acc_u[0], FD_OutputAcc[0], FD_OutputAcc_Fil[0], FD_OutputVel[0],
+//             FD_OutputPos_Fil[0], FD_OutputVel_Unfiltered[0],
+//             FD_OutputPos_Unfiltered[0],PEN_Angle);
+
+  PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(),
+            FD_Acc_u[0],FD_OutputAcc_Fil[0], FD_OutputVel[0],
+            FD_OutputPos_Fil[0],PEN_Angle);
+
 
   //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(), FD_Acc_u[0],
   //             Z_DDOT_Fil5, Z_DDOT_Fil4, Z_DDOT_Fil3, Z_DDOT_Fil2);
