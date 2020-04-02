@@ -7,7 +7,7 @@
 
 int main() {
   CASCADE_Init();
-//   SERIAL_Init();
+  SERIAL_Init();
   while (1) {
   } // WHILE
 } // MAIN

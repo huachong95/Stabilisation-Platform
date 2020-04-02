@@ -1,5 +1,5 @@
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
-#define SERIAL_PRINT_INTERVAL 0.02
+#define SERIAL_PRINT_INTERVAL 0.01
 #define SYSTEMTIMEOUTINTERVAL 0.1
 
 #include "CASCADE.h"
@@ -131,20 +131,20 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-
-    // if (SCASCADE_Mode == 1) {
-    //   PC.printf("%f %f %f \n\r", TIME2.read(), CASCADE_Get_DEMANDED_Current(),
-    //   CASCADE_Get_MOTOR_Current());
-    // } else if (SCASCADE_Mode == 2) {
-    //   PC.printf("%f %f %f %f %f \n\r", TIME2.read(),
-    //   CASCADE_Get_DEMANDED_Current_Total(),
-    //             CASCADE_Get_MOTOR_Current(), CASCADE_Get_DEMANDED_Velocity(), CASCADE_Get_ENCODER_RPM());
-    // } else if (SCASCADE_Mode == 3) {
-    //   PC.printf("%f %f %f %f %f %f %f \n\r", TIME2.read(),
-    //             CASCADE_Get_DEMANDED_Current_Total(), CASCADE_Get_MOTOR_Current(),
-    //             CASCADE_Get_DEMANDED_Velocity_Total(), CASCADE_Get_ENCODER_RPM(), CASCADE_Get_DEMANDED_Position(),
-    //             CASCADE_Get_LEADSCREW_Pos());
-    // }
+// PC.printf("Hello \n\r");
+    if (SCASCADE_Mode == 1) {
+      PC.printf("%f %f %f \n\r", TIME2.read(), CASCADE_Get_DEMANDED_Current(),
+      CASCADE_Get_MOTOR_Current());
+    } else if (SCASCADE_Mode == 2) {
+      PC.printf("%f %f %f %f %f \n\r", TIME2.read(),
+      CASCADE_Get_DEMANDED_Current_Total(),
+                CASCADE_Get_MOTOR_Current(), CASCADE_Get_DEMANDED_Velocity(), CASCADE_Get_ENCODER_RPM());
+    } else if (SCASCADE_Mode == 3) {
+      PC.printf("%f %f %f %f %f %f %f \n\r", TIME2.read(),
+                CASCADE_Get_DEMANDED_Current_Total(), CASCADE_Get_MOTOR_Current(),
+                CASCADE_Get_DEMANDED_Velocity_Total(), CASCADE_Get_ENCODER_RPM(), CASCADE_Get_DEMANDED_Position(),
+                CASCADE_Get_LEADSCREW_Pos());
+    }
 }
 
 void SERIAL_SystemStatus() {
