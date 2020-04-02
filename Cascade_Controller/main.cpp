@@ -43,9 +43,9 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
-PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
-// PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(1.0, 20.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(9, 0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(0.5, 10.0, 0.0, PID_VELOCITY_RATE);
 // PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 
@@ -227,11 +227,13 @@ void Cascade_Initialisation(int Cascade_Mode);
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
   IMU_Init();
-  ANGLE_ISR.attach(&IMU_ISR, IMU_INTERVAL);
+//   ANGLE_ISR.attach(&IMU_ISR, IMU_INTERVAL);
   MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
   L_PWM.period(0.00008);
   R_PWM.period(0.00008);
+//   L_PWM.period(0.00012);
+//   R_PWM.period(0.00012);
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
@@ -245,7 +247,7 @@ int main() {
   PID_Position_Initialisation();
   Cascade_Initialisation(CASCADE_MODE);
   PID_Position_Initialisation();
-  //   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
+    SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
@@ -421,24 +423,23 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  //   if (Cascade_Mode == 1) {
-  //     PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current,
-  //     MOTOR_Current);
-  //   } else if (Cascade_Mode == 2) {
-  //     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
-  //               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
-  //   } else if (Cascade_Mode == 3) {
-  //     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current,
-  //               DEMANDED_Current_Total, MOTOR_Current,
-  //               DEMANDED_Velocity_Total, ENCODER_RPM, DEMANDED_Position,
-  //               LEADSCREW_Position);
-  //   }
+  if (Cascade_Mode == 1) {
+    PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current, MOTOR_Current);
+  } else if (Cascade_Mode == 2) {
+    PC.printf("%f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
+              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
+  } else if (Cascade_Mode == 3) {
+    float t1 = TIME1.read();
+    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1.read(),
+              DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
+              ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position);
+  }
 
-  //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
-  //   FD_Acc_u[0],
-  //             FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
-  //             PEN_Angle);
-  //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
+  // PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
+  // FD_Acc_u[0],
+  //           FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
+  //           PEN_Angle);
+  //   PC.printf(" %f %f %f \n\r", TIME1.read(), DEMANDED_Velocity,
   //   ENCODER_RPM);
   // PC.printf("AnalogIn: %f
   // %f\n\r",CURRENT_Sensor_ADC_Reading,CURRENT_Offset);
@@ -448,13 +449,13 @@ void SERIAL_Print() {
   //    printf("ENCODER_Count: %f \n\r",ENCODER_Count);
   //   PC.printf("LSwitch State: %i \n\r", LSWITCH_Flag);
   //   PC.printf("Time: %f  Demanded Position: %f Leadscrew Position: %f \n\r",
-  //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position);
+  //             TIME1.read(), DEMANDED_Position, LEADSCREW_Position);
 
   //   PC.printf("Current Time: %f Demanded Position: %f Leadscrew Position:
   //   %f
   //   "
   //             "EncoderCounts:%i \n\r",
-  //             TIME1_Current, DEMANDED_Position, LEADSCREW_Position,
+  //             TIME1.read(), DEMANDED_Position, LEADSCREW_Position,
   //             ENCODER_Count);
   //   PC.printf("ADC_Current: %f, Current:%f \n\r",
   //   CURRENT_Sensor_ADC_Reading,
@@ -462,7 +463,7 @@ void SERIAL_Print() {
   //   PC.printf("Time: %f  Demanded Current: %f Leadscrew Current: %f
   //   MOTOR_Speed: "
   //             "%f \n\r",
-  //             TIME1_Current, DEMANDED_Current, MOTOR_Current,
+  //             TIME1.read(), DEMANDED_Current, MOTOR_Current,
   //             MOTOR_Speed_PID);
   // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
   //       ENCODER_RPM, MOTOR_Speed_PID);
@@ -659,6 +660,7 @@ void PID_Velocity_Computation() {
   PID_Velocity.setSetPoint(DEMANDED_Velocity_Total);
   PID_Velocity.setProcessValue(ENCODER_RPM);
   ERROR_Vel = -PID_Velocity.compute();
+
 }
 
 void PID_Current_Computation() {
@@ -695,6 +697,7 @@ void IMU_Init() {
 }
 
 void IMU1_Angle() {
+  // float t1=TIME1.read();
   imu1.get_angles();
   IMU1_Pitch = imu1.euler.pitch;
   IMU1_Roll = imu1.euler.roll;
@@ -727,8 +730,6 @@ void IMU1_Linear_Acceleration() {
   IMU1_X_Linear_Acc = imu1.lia.x;
   IMU1_Y_Linear_Acc = imu1.lia.y;
   IMU1_Z_Linear_Acc = imu1.lia.z;
-  float t2 = TIME1.read() - t1;
-  PC.printf("%f \n\r", t2);
 }
 
 void IMU2_Linear_Acceleration() {
