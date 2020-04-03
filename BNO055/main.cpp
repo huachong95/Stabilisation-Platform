@@ -106,6 +106,8 @@ int main() {
   while (true) {
 
     if (IMU_Flag) {
+      imu1.setmode(OPERATION_MODE_NDOF);
+      imu2.setmode(OPERATION_MODE_NDOF);
       IMU1_Angle();
       IMU2_Angle();
       //   IMU1_Acceleration();

@@ -20,7 +20,7 @@
 #define PID_VELOCITY_RATE 0.001   // 1000HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0001   // 10000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 210 // Leadscrew initial position
+#define LEADSCREW_INITIAL_POS 150// Leadscrew initial position
 #define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
 #define IMU_INTERVAL 0.01         // 100Hz
 
@@ -171,8 +171,8 @@ float ERROR_Pos = 0.0;
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
 float DEMANDED_Position = LEADSCREW_INITIAL_POS;
-float DEMANDED_Velocity = 0.0;
-float DEMANDED_Velocity_Total = 0.0;
+float DEMANDED_Velocity = 0;
+float DEMANDED_Velocity_Total = 0;
 float DEMANDED_Current = 0.0;
 float DEMANDED_Current_Total = 0.0;
 float MOTOR_Speed_PID = 0.0;
@@ -227,27 +227,27 @@ void Cascade_Initialisation(int Cascade_Mode);
 int main() {
   PC.attach(&SERIAL_Read); // attaches interrupt upon serial input
   IMU_Init();
-//   ANGLE_ISR.attach(&IMU_ISR, IMU_INTERVAL);
+  ANGLE_ISR.attach(&IMU_ISR, IMU_INTERVAL);
   MOTOR_TISR.attach(&MOTOR_ISR_Write, MOTOR_WRITE_RATE);
   ENCODER_Check_TISR.attach(&ENCODER_Check, ENCODER_INTERVAL);
   L_PWM.period(0.00008);
   R_PWM.period(0.00008);
-//   L_PWM.period(0.00012);
-//   R_PWM.period(0.00012);
+  //   L_PWM.period(0.00012);
+  //   R_PWM.period(0.00012);
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
-  LSWITCH_Home();
+                   LSWITCH_Home();
   RH_ENCODER_A.rise(&ENCODER_Event);
   RH_ENCODER_A.fall(&ENCODER_Event);
 
   CURRENT_Sensor_TISR.attach(&CURRENT_SENSOR_ISR_Read, PID_CURRENT_RATE);
   CURRENT_Offset = CURRENT_Sensor_Offset(); // obtains the zero-offset current
 
-  PID_Position_Initialisation();
-  Cascade_Initialisation(CASCADE_MODE);
-  PID_Position_Initialisation();
-    SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
+    PID_Position_Initialisation();
+    Cascade_Initialisation(CASCADE_MODE);
+    PID_Position_Initialisation();
+//   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
@@ -352,6 +352,18 @@ int main() {
       }
       }
     }
+
+    if (IMU_Flag) {
+      imu1.setmode(OPERATION_MODE_NDOF);
+      imu2.setmode(OPERATION_MODE_NDOF);
+      IMU1_Angle();
+      IMU2_Angle();
+      // IMU1_Acceleration();
+      IMU1_Linear_Acceleration();
+      Acceleration_Computation();
+      FD_Computation();
+      IMU_Flag = 0;
+    }
     if ((Cascade_Mode == 3) &&
         ((PID_CURRENT_INITIALISED) && (PID_VELOCITY_INITIALISED) &&
          (PID_POSITION_INITIALISED))) {
@@ -385,15 +397,7 @@ int main() {
         PID_Current_Flag = 0;
       }
     }
-    if (IMU_Flag) {
-      IMU1_Angle();
-      IMU2_Angle();
-      // IMU1_Acceleration();
-      IMU1_Linear_Acceleration();
-      Acceleration_Computation();
-      FD_Computation();
-      IMU_Flag = 0;
-    }
+
     if (JOYSTICK_Read_Flag) {
       JOYSTICK_Read();
       JOYSTICK_Read_Flag = 0;
@@ -424,15 +428,17 @@ void SERIAL_Read() {
 }
 void SERIAL_Print() {
   if (Cascade_Mode == 1) {
-    PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current, MOTOR_Current);
+    PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current,
+    MOTOR_Current);
   } else if (Cascade_Mode == 2) {
     PC.printf("%f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
   } else if (Cascade_Mode == 3) {
     float t1 = TIME1.read();
     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1.read(),
-              DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
-              ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position);
+    DEMANDED_Current_Total,
+              MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM,
+              DEMANDED_Position, LEADSCREW_Position);
   }
 
   // PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
@@ -467,6 +473,7 @@ void SERIAL_Print() {
   //             MOTOR_Speed_PID);
   // PC.printf("D: %f, Actual: %f, PWM: %f \n\r", DEMANDED_Velocity,
   //       ENCODER_RPM, MOTOR_Speed_PID);
+
 }
 
 void SetSpeed(int MOTOR_Speed) {
@@ -656,7 +663,7 @@ void PID_Velocity_Computation() {
   } else if (DEMANDED_Velocity < -MAX_MOTORSPEED) {
     DEMANDED_Velocity = -MAX_MOTORSPEED;
   }
-  DEMANDED_Velocity_Total = DEMANDED_Velocity - ERROR_Pos;
+  DEMANDED_Velocity_Total =  DEMANDED_Velocity - ERROR_Pos;
   PID_Velocity.setSetPoint(DEMANDED_Velocity_Total);
   PID_Velocity.setProcessValue(ENCODER_RPM);
   ERROR_Vel = -PID_Velocity.compute();
@@ -670,7 +677,7 @@ void PID_Current_Computation() {
   if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
     DEMANDED_Current = -CURRENT_MAX_RANGE;
   }
-  DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
+  DEMANDED_Current_Total =DEMANDED_Current + ERROR_Vel;
   PID_Current.setSetPoint(DEMANDED_Current_Total);
   PID_Current.setProcessValue(MOTOR_Current);
   MOTOR_Speed_PID = PID_Current.compute();
@@ -798,6 +805,14 @@ void FD_Computation() {
   //       FD_OutputPos[1];
   FD_OutputPos_Fil[0] = P_filter_alpha * (FD_OutputPos_Fil[1] +
                                           FD_OutputPos[0] - FD_OutputPos[1]);
+
+  DEMANDED_Position = LEADSCREW_INITIAL_POS - FD_OutputPos_Fil[0] * 1000;
+  DEMANDED_Velocity = -FD_OutputVel[0] * 60 * 1000 / 8;
+  float Jtot = 0.00002756; // Leadscrew Moment of Inertia
+  float Kt = 0.0267;       // Motor torque constant
+  DEMANDED_Current =
+      ((3.1416 * Jtot) / (Kt * LEADSCREW_LEAD / 1000)) * FD_OutputAcc_Fil[0];
+
   FD_OutputAcc[1] = FD_OutputAcc[0];
   FD_OutputVel[1] = FD_OutputVel[0]; // Shifts the velocity results
   FD_OutputPos[1] = FD_OutputPos[0]; // Shifts the position results
@@ -806,6 +821,7 @@ void FD_Computation() {
   FD_OutputPos_Fil[1] = FD_OutputPos_Fil[0];
   //   FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
   //   FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
+
 }
 
 float Moving_Average5(float data) {
