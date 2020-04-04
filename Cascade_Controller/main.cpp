@@ -23,6 +23,13 @@
 #define LEADSCREW_INITIAL_POS 150// Leadscrew initial position
 #define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
 #define IMU_INTERVAL 0.01         // 100Hz
+#define HARDWARE_PMAX 220
+#define HARDWARE_PMIN 80
+#define HARDWARE_VMAX 2500
+#define HARDWARE_VMIN -2500
+#define HARDWARE_CMAX 10
+#define HARDWARE_CMIN -10
+
 
 #include "BNO055.h"
 #include "PID.h"
@@ -247,7 +254,7 @@ int main() {
     PID_Position_Initialisation();
     Cascade_Initialisation(CASCADE_MODE);
     PID_Position_Initialisation();
-//   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
+  SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
@@ -266,8 +273,8 @@ int main() {
       }
     }
     if (SERIAL_Read_Flag) {
-      SERIAL_SystemStatus_ISR.attach(&SERIAL_SystemStatus,
-                                     SYSTEMTIMEOUTINTERVAL);
+    //   SERIAL_SystemStatus_ISR.attach(&SERIAL_SystemStatus,
+    //                                  SYSTEMTIMEOUTINTERVAL);
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
       //            char* payload = strtok(SERIAL_RXDataBuffer, ",");
@@ -681,7 +688,12 @@ void PID_Current_Computation() {
   PID_Current.setSetPoint(DEMANDED_Current_Total);
   PID_Current.setProcessValue(MOTOR_Current);
   MOTOR_Speed_PID = PID_Current.compute();
+  if ((abs(DEMANDED_Current_Total)>HARDWARE_CMAX)||(abs(DEMANDED_Velocity_Total)>HARDWARE_VMAX)||(DEMANDED_Position>HARDWARE_PMAX)||(DEMANDED_Position<HARDWARE_PMIN)){
+      SetSpeed(0); //Safety Limits
+  }
+  else{
   SetSpeed(MOTOR_Speed_PID);
+  }
 }
 
 void SERIAL_SystemStatus() {
@@ -821,6 +833,7 @@ void FD_Computation() {
   FD_OutputPos_Fil[1] = FD_OutputPos_Fil[0];
   //   FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
   //   FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
+//   PC.printf("%f %f %f\n\r",DEMANDED_Current,DEMANDED_Current_Total,FD_OutputAcc_Fil[0]);
 
 }
 
