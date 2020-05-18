@@ -7,7 +7,8 @@
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
 #define CURRENT_SENSOR_PIN A0      // ACS712 Current Sensor pin
-#define ENCODER_INTERVAL 0.05      // Encoder read interval
+#define ENCODER_INTERVAL 0.01      // Encoder read interval
+// #define ENCODER_INTERVAL 0.05      // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
 #define LEADSCREW_MAX_RANGE 330
@@ -44,7 +45,9 @@ AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 // PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
 PID PID_Position(9, 0.0, 0.0, PID_POSITION_RATE);
 // PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(1.0, 20.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Velocity(1, 20.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(1.0, 25.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 
 Ticker MOTOR_TISR;
