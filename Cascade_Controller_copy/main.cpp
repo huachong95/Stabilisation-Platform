@@ -41,7 +41,8 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
-PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
+// PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(9, 0.0, 0.0, PID_POSITION_RATE);
 // PID PID_Position(8, 1000.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(1.0, 20.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
@@ -185,7 +186,6 @@ int main() {
   Cascade_Initialisation(CASCADE_MODE);
   PID_Position_Initialisation();
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
-
   while (1) {
     while (LEADSCREW_Initialisation == 0) {
       while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
@@ -352,16 +352,16 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-//   if (Cascade_Mode == 1) {
-//     PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
-//   } else if (Cascade_Mode == 2) {
-//     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
-//               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
-//   } else if (Cascade_Mode == 3) {
-//     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
-//               MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM, DEMANDED_Position,
-//               LEADSCREW_Position);
-//   }
+  if (Cascade_Mode == 1) {
+    PC.printf("%f %f %f \n\r", TIME1_Current, DEMANDED_Current, MOTOR_Current);
+  } else if (Cascade_Mode == 2) {
+    PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
+              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
+  } else if (Cascade_Mode == 3) {
+    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
+              MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM, DEMANDED_Position,
+              LEADSCREW_Position);
+  }
 
   //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
   //   ENCODER_RPM);
