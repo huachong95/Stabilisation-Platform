@@ -27,8 +27,8 @@
 #define HARDWARE_PMIN 110
 // #define HARDWARE_VMAX 2500
 // #define HARDWARE_VMIN -2500
-#define HARDWARE_VMAX 2200
-#define HARDWARE_VMIN 2200
+#define HARDWARE_VMAX 4000
+#define HARDWARE_VMIN 4000
 #define HARDWARE_CMAX 15
 #define HARDWARE_CMIN -15
 
@@ -120,6 +120,7 @@ float FD_OutputPos_Unfiltered[2] = {0, 0};
 float MA5_Data[5] = {0, 0, 0, 0, 0};
 float MA4_Data1[4] = {0, 0, 0, 0};
 float MA4_Data2[4] = {0, 0, 0, 0};
+float MA4_Data3[4] = {0, 0, 0, 0};
 float MA3_Data[3] = {0, 0, 0};
 float MA2_Data[2] = {0, 0};
 
@@ -162,6 +163,7 @@ float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
 float TIME1_Sample_Duration = 0.0;
 float ENCODER_RPM = 0.0;
+float ENCODER_RPM_Raw=0.0;
 float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
@@ -201,6 +203,7 @@ void FD_Computation();
 float Moving_Average5(float data);
 float Moving_Average4_1(float data);
 float Moving_Average4_2(float data);
+float Moving_Average4_3(float data);
 float Moving_Average3(float data);
 float Moving_Average2(float data);
 
@@ -560,8 +563,11 @@ void ENCODER_Check() {
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
-  ENCODER_RPM = (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
+//   ENCODER_RPM = (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
+//                         60); // right wheel RPM
+  ENCODER_RPM_Raw = (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
                         60); // right wheel RPM
+ENCODER_RPM=Moving_Average3(ENCODER_RPM_Raw);
   //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
   ENCODER_Old_Count = ENCODER_Count;
@@ -863,6 +869,15 @@ float Moving_Average4_2(float data) {
   MA4_Data2[1] = MA4_Data2[0];
   return MA4_Data2[0];
 }
+
+float Moving_Average4_3(float data) {
+  MA4_Data3[0] = (data + MA4_Data3[1] + MA4_Data3[2] + MA4_Data3[3]) / 4;
+  MA4_Data3[3] = MA4_Data3[2];
+  MA4_Data3[2] = MA4_Data3[1];
+  MA4_Data3[1] = MA4_Data3[0];
+  return MA4_Data3[0];
+}
+
 float Moving_Average3(float data) {
   MA3_Data[0] = (data + MA3_Data[1] + MA3_Data[2]) / 3;
   MA3_Data[2] = MA3_Data[1];

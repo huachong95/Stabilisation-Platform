@@ -4,10 +4,10 @@
 #define R_PWM_PIN D9
 #define JOYSTICK_PIN A5
 #define L_SWITCH_PIN D12
-#define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
-#define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
-#define CURRENT_SENSOR_PIN A0      // ACS712 Current Sensor pin
-#define ENCODER_INTERVAL 0.01      // Encoder read interval
+#define RH_ENCODER_A_PIN D3   // right motor encoder A interrupt pin
+#define RH_ENCODER_B_PIN D2   // right motor encoder B interrupt pin
+#define CURRENT_SENSOR_PIN A0 // ACS712 Current Sensor pin
+#define ENCODER_INTERVAL 0.01 // Encoder read interval
 // #define ENCODER_INTERVAL 0.05      // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
@@ -23,7 +23,6 @@
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
 #define LEADSCREW_INITIAL_POS 210 // Leadscrew initial position
 #define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
-
 
 #include "PID.h"
 #include "mbed.h"
@@ -63,7 +62,6 @@ Timer TIME1;
 
 // VARIABLE INSTANTIATION
 
-
 // SERIAL Variables
 char SERIAL_RXDataBuffer[128];       // Serial buffer for incoming serial data
 volatile char SERIAL_RX_Counter = 0; // Serial counter used in seral buffer
@@ -99,6 +97,7 @@ float TIME1_Current = 0.0;
 float TIME1_Previous = 0.0;
 float TIME1_Sample_Duration = 0.0;
 float ENCODER_RPM = 0.0;
+float ENCODER_RPM_Raw=0.0;
 float ENCODER_Change = 0.0;
 int ENCODER_Speed = 0;
 float ENCODER_Old_Count = 0.0;
@@ -114,6 +113,8 @@ bool PID_Current_Flag = 0;
 float ERROR_Vel = 0.0;
 float ERROR_Pos = 0.0;
 
+float MA3_Data[3] = {0, 0, 0};
+
 // LEADSCREW Variables
 float LEADSCREW_Position = 0.0;
 float DEMANDED_Position = LEADSCREW_INITIAL_POS;
@@ -124,7 +125,7 @@ float DEMANDED_Current_Total = 0.0;
 float MOTOR_Speed_PID = 0.0;
 
 // FUNCTION DECLARATIONS
-//IMU FUNCTIONS
+// IMU FUNCTIONS
 void IMU_Init();
 void IMU1_Angle();
 void IMU2_Angle();
@@ -135,11 +136,7 @@ void IMU2_Linear_Acceleration();
 void Acceleration_Computation();
 void IMU_ISR();
 void FD_Computation();
-float Moving_Average5(float data);
-float Moving_Average4_1(float data);
-float Moving_Average4_2(float data);
 float Moving_Average3(float data);
-float Moving_Average2(float data);
 
 void SERIAL_Read();
 void SERIAL_Print();
@@ -361,9 +358,9 @@ void SERIAL_Print() {
     PC.printf("%f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
   } else if (Cascade_Mode == 3) {
-    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current, DEMANDED_Current_Total,
-              MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM, DEMANDED_Position,
-              LEADSCREW_Position);
+    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1_Current,
+              DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
+              ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position);
   }
 
   //   PC.printf(" %f %f %f \n\r", TIME1_Current, DEMANDED_Velocity,
@@ -471,8 +468,13 @@ void ENCODER_Check() {
 
   // since encoder feedback resolution is 17 for 1 revolution (shaft
   ENCODER_Change = ENCODER_Count - ENCODER_Old_Count;
-  ENCODER_RPM = (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
-                        60); // right wheel RPM
+//   ENCODER_RPM = (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
+//                         60); // right wheel RPM
+
+  ENCODER_RPM_Raw =
+      (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
+              60); // right wheel RPM
+  ENCODER_RPM = Moving_Average3(ENCODER_RPM_Raw);
   //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
   ENCODER_Old_Count = ENCODER_Count;
@@ -610,6 +612,12 @@ void SERIAL_SystemStatus() {
   SetSpeed(0);
 }
 
+float Moving_Average3(float data) {
+  MA3_Data[0] = (data + MA3_Data[1] + MA3_Data[2]) / 3;
+  MA3_Data[2] = MA3_Data[1];
+  MA3_Data[1] = MA3_Data[0];
+  return MA3_Data[0];
+}
 
 // ISR Functions
 void JOYSTICK_ISR_Read() { JOYSTICK_Read_Flag = 1; }
