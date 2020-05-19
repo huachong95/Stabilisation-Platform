@@ -7,7 +7,7 @@
 #define RH_ENCODER_A_PIN D3        // right motor encoder A interrupt pin
 #define RH_ENCODER_B_PIN D2        // right motor encoder B interrupt pin
 #define CURRENT_SENSOR_PIN A0      // ACS712 Current Sensor pin
-#define ENCODER_INTERVAL 0.05      // Encoder read interval
+#define ENCODER_INTERVAL 0.01      // Encoder read interval
 #define LSWITCH_SLEEP_DURATION 600 // Minimum cycle switch duration required
 #define LEADSCREW_LEAD 8           // Lead in mm
 #define LEADSCREW_MAX_RANGE 330
@@ -23,12 +23,14 @@
 #define LEADSCREW_INITIAL_POS 150// Leadscrew initial position
 #define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
 #define IMU_INTERVAL 0.01         // 100Hz
-#define HARDWARE_PMAX 220
-#define HARDWARE_PMIN 80
-#define HARDWARE_VMAX 2500
-#define HARDWARE_VMIN -2500
-#define HARDWARE_CMAX 10
-#define HARDWARE_CMIN -10
+#define HARDWARE_PMAX 200
+#define HARDWARE_PMIN 110
+// #define HARDWARE_VMAX 2500
+// #define HARDWARE_VMIN -2500
+#define HARDWARE_VMAX 2200
+#define HARDWARE_VMIN 2200
+#define HARDWARE_CMAX 15
+#define HARDWARE_CMIN -15
 
 
 #include "BNO055.h"
@@ -50,9 +52,9 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
-// PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
-PID PID_Position(9, 0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(0.5, 10.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
+// PID PID_Position(9, 0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(0.75, 10.0, 0.0, PID_VELOCITY_RATE);
 // PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 
@@ -448,10 +450,10 @@ void SERIAL_Print() {
               DEMANDED_Position, LEADSCREW_Position);
   }
 
-  // PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
-  // FD_Acc_u[0],
-  //           FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
-  //           PEN_Angle);
+//   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
+//   FD_Acc_u[0],
+//             FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
+//             PEN_Angle);
   //   PC.printf(" %f %f %f \n\r", TIME1.read(), DEMANDED_Velocity,
   //   ENCODER_RPM);
   // PC.printf("AnalogIn: %f
@@ -690,6 +692,7 @@ void PID_Current_Computation() {
   MOTOR_Speed_PID = PID_Current.compute();
   if ((abs(DEMANDED_Current_Total)>HARDWARE_CMAX)||(abs(DEMANDED_Velocity_Total)>HARDWARE_VMAX)||(DEMANDED_Position>HARDWARE_PMAX)||(DEMANDED_Position<HARDWARE_PMIN)){
       SetSpeed(0); //Safety Limits
+    //   PC.printf("LIMIT HIT");
   }
   else{
   SetSpeed(MOTOR_Speed_PID);
