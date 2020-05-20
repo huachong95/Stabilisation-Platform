@@ -61,7 +61,7 @@ PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 Ticker ANGLE_ISR;
 Ticker MOTOR_TISR;
 Ticker SERIAL_Print_TISR;
-Ticker SERIAL_SystemStatus_ISR;
+Ticker SERIAL_SystemStatus_ISRR;
 Ticker JOYSTICK_TISR;      // Ticker interrupt for updating of joystick position
 Ticker ENCODER_Check_TISR; // Ticker interrupt for Encoder ISR
 Ticker CURRENT_Sensor_TISR;
@@ -92,6 +92,7 @@ float IMU2_Y_Linear_Acc = 0.0;
 float IMU2_Z_Linear_Acc = 0.0;
 
 bool IMU_Flag = 0;
+bool SERIAL_SystemStatus_Flag=0; 
 float PEN_Angle = 0.0;
 
 float x_ddot = 0.0;
@@ -199,6 +200,7 @@ void IMU1_Linear_Acceleration();
 void IMU2_Linear_Acceleration();
 void Acceleration_Computation();
 void IMU_ISR();
+void SERIAL_SystemStatus_ISR();
 void FD_Computation();
 float Moving_Average5(float data);
 float Moving_Average4_1(float data);
@@ -249,7 +251,7 @@ int main() {
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
-  LSWITCH_Home();
+//   LSWITCH_Home();
   RH_ENCODER_A.rise(&ENCODER_Event);
   RH_ENCODER_A.fall(&ENCODER_Event);
 
@@ -262,21 +264,21 @@ int main() {
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
-    while (LEADSCREW_Initialisation == 0) {
-      while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
-        SetSpeed(-35);
-      }
-      if (PID_Position_Flag) {
-        PID_Position_Computation();
-        SetSpeed(ERROR_Pos);
-        PID_Position_Flag = 0;
-      }
-      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
-          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 15))) {
-        SetSpeed(0);
-        LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
-      }
-    }
+    // while (LEADSCREW_Initialisation == 0) {
+    //   while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
+    //     SetSpeed(-35);
+    //   }
+    //   if (PID_Position_Flag) {
+    //     PID_Position_Computation();
+    //     SetSpeed(ERROR_Pos);
+    //     PID_Position_Flag = 0;
+    //   }
+    //   if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
+    //       ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 15))) {
+    //     SetSpeed(0);
+    //     LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
+    //   }
+    // }
     if (SERIAL_Read_Flag) {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
@@ -364,7 +366,7 @@ int main() {
     }
 
     if (IMU_Flag) {
-      SERIAL_SystemStatus_ISR.attach(&SERIAL_SystemStatus,
+      SERIAL_SystemStatus_ISRR.attach(&SERIAL_SystemStatus_ISR,
                                      SYSTEMTIMEOUTINTERVAL);
       imu1.setmode(OPERATION_MODE_NDOF);
       imu2.setmode(OPERATION_MODE_NDOF);
@@ -422,6 +424,10 @@ int main() {
       CURRENT_Sensor_Read();
       CURRENT_Sensor_Flag = 0;
     }
+    if(SERIAL_SystemStatus_Flag){
+        SERIAL_SystemStatus();
+        SERIAL_SystemStatus_Flag=0;
+    }
   }
 }
 
@@ -451,7 +457,9 @@ void SERIAL_Print() {
 //               DEMANDED_Position, LEADSCREW_Position);
 //   }
 
-PC.printf("Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r", IMU1_Li)
+// PC.printf("X1:%f Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r", IMU1_X_Linear_Acc,IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT_Fil4,LENGTH_Acc);
+
+PC.printf("%f %f %f %f %f %f \n\r", TIME1.read(),IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT,LENGTH_Acc);
 
   //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
   //   FD_Acc_u[0],
@@ -770,7 +778,7 @@ void IMU2_Linear_Acceleration() {
 void Acceleration_Computation() {
   Z_DDOT =
       IMU1_Y_Linear_Acc * sin(IMU1_Pitch) - IMU1_X_Linear_Acc * sin(IMU1_Roll) +
-      IMU1_Z_Linear_Acc * cos(IMU1_Pitch) + IMU1_Z_Linear_Acc * cos(IMU1_Roll);
+      IMU1_Z_Linear_Acc * cos(sqrt((IMU1_Pitch*IMU1_Pitch)+(IMU1_Roll*IMU1_Roll)));
 
   y_ddot =
       IMU1_Y_Linear_Acc * cos(IMU1_Pitch) - IMU1_Z_Linear_Acc * sin(IMU1_Pitch);
@@ -907,3 +915,4 @@ void CURRENT_SENSOR_ISR_Read() { CURRENT_Sensor_Flag = 1; }
 void PID_Position_ISR() { PID_Position_Flag = 1; }
 void PID_Velocity_ISR() { PID_Velocity_Flag = 1; }
 void PID_Current_ISR() { PID_Current_Flag = 1; }
+void SERIAL_SystemStatus_ISR(){SERIAL_SystemStatus_Flag=1;}
