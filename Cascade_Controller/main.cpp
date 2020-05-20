@@ -14,7 +14,7 @@
 #define MAX_MOTORSPEED 4500
 #define ENCODER_CPR 30 // Encoder Pulses per revolution
 #define SERIAL_PRINT_INTERVAL 0.02
-#define SYSTEMTIMEOUTINTERVAL 0.1
+#define SYSTEMTIMEOUTINTERVAL 0.2
 #define MOTOR_WRITE_RATE 0.01     // Write Rate of Motor
 #define PID_POSITION_RATE 0.01    // 100Hz Sample Rate of PID_Position
 #define PID_VELOCITY_RATE 0.001   // 1000HzSample Rate of PID_Velocity
@@ -23,12 +23,12 @@
 #define LEADSCREW_INITIAL_POS 150 // Leadscrew initial position
 #define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
 #define IMU_INTERVAL 0.01         // 100Hz
-#define HARDWARE_PMAX 200
-#define HARDWARE_PMIN 110
+#define HARDWARE_PMAX 250
+#define HARDWARE_PMIN 70
 // #define HARDWARE_VMAX 2500
 // #define HARDWARE_VMIN -2500
-#define HARDWARE_VMAX 4000
-#define HARDWARE_VMIN 4000
+#define HARDWARE_VMAX 6500
+#define HARDWARE_VMIN 6500
 #define HARDWARE_CMAX 15
 #define HARDWARE_CMIN -15
 
@@ -53,7 +53,8 @@ AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
 // PID PID_Position(9, 0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(0.60, 30.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Velocity(0.55, 15.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Velocity(0.65, 40.0, 0.0, PID_VELOCITY_RATE);
 // PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
 PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 
@@ -438,17 +439,19 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-  if (Cascade_Mode == 1) {
-    PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current, MOTOR_Current);
-  } else if (Cascade_Mode == 2) {
-    PC.printf("%f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
-              MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
-  } else if (Cascade_Mode == 3) {
-    float t1 = TIME1.read();
-    PC.printf("%f %f %f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
-              MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM,
-              DEMANDED_Position, LEADSCREW_Position);
-  }
+//   if (Cascade_Mode == 1) {
+//     PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current, MOTOR_Current);
+//   } else if (Cascade_Mode == 2) {
+//     PC.printf("%f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
+//               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
+//   } else if (Cascade_Mode == 3) {
+//     float t1 = TIME1.read();
+//     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
+//               MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM,
+//               DEMANDED_Position, LEADSCREW_Position);
+//   }
+
+PC.printf("Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r", IMU1_Li)
 
   //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
   //   FD_Acc_u[0],
