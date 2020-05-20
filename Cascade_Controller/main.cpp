@@ -1,3 +1,4 @@
+#define PI 3.141592654
 #define L_EN_PIN D10
 #define R_EN_PIN D8
 #define L_PWM_PIN D6
@@ -51,12 +52,15 @@ InterruptIn RH_ENCODER_A(RH_ENCODER_A_PIN);
 DigitalIn RH_ENCODER_B(RH_ENCODER_B_PIN);
 AnalogIn JOYSTICK_Y(JOYSTICK_PIN); // Analog input for Joystick Y Position
 AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
-PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
-// PID PID_Position(9, 0, 0.0, PID_POSITION_RATE);
-// PID PID_Velocity(0.55, 15.0, 0.0, PID_VELOCITY_RATE);
-PID PID_Velocity(0.65, 40.0, 0.0, PID_VELOCITY_RATE);
-// PID PID_Current(85, 30.0, 0, PID_CURRENT_RATE);
-PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
+// PID PID_Position(9, 10.0, 0.0, PID_POSITION_RATE);
+// // PID PID_Position(9, 0, 0.0, PID_POSITION_RATE);
+// // PID PID_Velocity(0.55, 15.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Velocity(0.5, 45.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
+// // PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
+PID PID_Position(6.6, 705.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(1.65, 60.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Current(40, 30.0, 0, PID_CURRENT_RATE);
 
 Ticker ANGLE_ISR;
 Ticker MOTOR_TISR;
@@ -92,7 +96,7 @@ float IMU2_Y_Linear_Acc = 0.0;
 float IMU2_Z_Linear_Acc = 0.0;
 
 bool IMU_Flag = 0;
-bool SERIAL_SystemStatus_Flag=0; 
+bool SERIAL_SystemStatus_Flag = 0;
 float PEN_Angle = 0.0;
 
 float x_ddot = 0.0;
@@ -105,6 +109,9 @@ float Z_DDOT_Fil4 = 0.0;
 float Z_DDOT_Fil3 = 0.0;
 float Z_DDOT_Fil2 = 0.0;
 float Y_DDOT_Fil4 = 0.0;
+float IMU1_Y_Filtered = 0.0;
+float IMU1_X_Filtered = 0.0;
+float IMU1_Z_Filtered = 0.0;
 
 float LENGTH_Acc = 0.0;
 // Finite Difference Implementation Variables
@@ -251,7 +258,7 @@ int main() {
   LSWITCH.rise(&LSWITCH_Rise_ISR);
   LSWITCH.fall(&LSWITCH_Fall_ISR);
   TIME1.start(); // Startsthe TIME1 timer
-//   LSWITCH_Home();
+  LSWITCH_Home();
   RH_ENCODER_A.rise(&ENCODER_Event);
   RH_ENCODER_A.fall(&ENCODER_Event);
 
@@ -264,21 +271,21 @@ int main() {
   SERIAL_Print_TISR.attach(&SERIAL_Print_ISR, SERIAL_PRINT_INTERVAL);
 
   while (1) {
-    // while (LEADSCREW_Initialisation == 0) {
-    //   while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
-    //     SetSpeed(-35);
-    //   }
-    //   if (PID_Position_Flag) {
-    //     PID_Position_Computation();
-    //     SetSpeed(ERROR_Pos);
-    //     PID_Position_Flag = 0;
-    //   }
-    //   if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
-    //       ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 15))) {
-    //     SetSpeed(0);
-    //     LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
-    //   }
-    // }
+    while (LEADSCREW_Initialisation == 0) {
+      while (LEADSCREW_Position < LEADSCREW_INITIAL_POS) {
+        SetSpeed(-35);
+      }
+      if (PID_Position_Flag) {
+        PID_Position_Computation();
+        SetSpeed(ERROR_Pos);
+        PID_Position_Flag = 0;
+      }
+      if ((LEADSCREW_Position >= LEADSCREW_INITIAL_POS - 15) &&
+          ((LEADSCREW_Position <= LEADSCREW_INITIAL_POS + 15))) {
+        SetSpeed(0);
+        LEADSCREW_Initialisation = 1; // Leadscrew Initialisation complete
+      }
+    }
     if (SERIAL_Read_Flag) {
       SERIAL_Read_Flag = 0;  // Clears the serial_read flag
       SERIAL_RX_Counter = 0; // Resets the RX erial buffer counter
@@ -367,7 +374,7 @@ int main() {
 
     if (IMU_Flag) {
       SERIAL_SystemStatus_ISRR.attach(&SERIAL_SystemStatus_ISR,
-                                     SYSTEMTIMEOUTINTERVAL);
+                                      SYSTEMTIMEOUTINTERVAL);
       imu1.setmode(OPERATION_MODE_NDOF);
       imu2.setmode(OPERATION_MODE_NDOF);
       IMU1_Angle();
@@ -424,9 +431,9 @@ int main() {
       CURRENT_Sensor_Read();
       CURRENT_Sensor_Flag = 0;
     }
-    if(SERIAL_SystemStatus_Flag){
-        SERIAL_SystemStatus();
-        SERIAL_SystemStatus_Flag=0;
+    if (SERIAL_SystemStatus_Flag) {
+      SERIAL_SystemStatus();
+      SERIAL_SystemStatus_Flag = 0;
     }
   }
 }
@@ -445,21 +452,29 @@ void SERIAL_Read() {
   }
 }
 void SERIAL_Print() {
-//   if (Cascade_Mode == 1) {
-//     PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current, MOTOR_Current);
-//   } else if (Cascade_Mode == 2) {
-//     PC.printf("%f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
-//               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
-//   } else if (Cascade_Mode == 3) {
-//     float t1 = TIME1.read();
-//     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
-//               MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM,
-//               DEMANDED_Position, LEADSCREW_Position);
-//   }
+  //   if (Cascade_Mode == 1) {
+  //     PC.printf("%f %f %f \n\r", TIME1.read(), DEMANDED_Current,
+  //     MOTOR_Current);
+  //   } else if (Cascade_Mode == 2) {
+  //     PC.printf("%f %f %f %f %f \n\r", TIME1.read(), DEMANDED_Current_Total,
+  //               MOTOR_Current, DEMANDED_Velocity, ENCODER_RPM);
+  //   } else if (Cascade_Mode == 3) {
+  //     float t1 = TIME1.read();
+  //     PC.printf("%f %f %f %f %f %f %f \n\r", TIME1.read(),
+  //     DEMANDED_Current_Total,
+  //               MOTOR_Current, DEMANDED_Velocity_Total, ENCODER_RPM,
+  //               DEMANDED_Position, LEADSCREW_Position);
+  //   }
 
-// PC.printf("X1:%f Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r", IMU1_X_Linear_Acc,IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT_Fil4,LENGTH_Acc);
+  PC.printf("%f %f %f %f %f %f %f %f %f %f %f %f \n\r ", TIME1.read(),
+            DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
+            ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position, IMU1_Roll,
+            IMU1_Pitch, PEN_Angle, Y_DDOT_Fil4, Z_DDOT_Fil4);
+  //   PC.printf("X1:%f Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r",
+  //   IMU1_X_Linear_Acc,IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT_Fil4,LENGTH_Acc);
 
-PC.printf("%f %f %f %f %f %f \n\r", TIME1.read(),IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT,LENGTH_Acc);
+  //   PC.printf("%f %f %f %f %f %f \n\r", TIME1.read(), IMU1_Y_Linear_Acc,
+  //             IMU1_Z_Linear_Acc, Y_DDOT_Fil4, Z_DDOT_Fil4, LENGTH_Acc);
 
   //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", TIME1.read(),
   //   FD_Acc_u[0],
@@ -716,8 +731,9 @@ void PID_Current_Computation() {
 }
 
 void SERIAL_SystemStatus() {
-imu1.reset();
-imu2.reset();
+  SetSpeed(0); // Safety Limits
+  imu1.reset();
+  imu2.reset();
 }
 
 void IMU_Init() {
@@ -735,14 +751,14 @@ void IMU_Init() {
 void IMU1_Angle() {
   // float t1=TIME1.read();
   imu1.get_angles();
-  IMU1_Pitch = imu1.euler.pitch;
-  IMU1_Roll = imu1.euler.roll;
+  IMU1_Pitch = imu1.euler.pitch * PI / 180;
+  IMU1_Roll = imu1.euler.roll * PI / 180;
   //   PEN_Angle = sqrt((IMU1_Pitch * IMU1_Pitch) + (IMU1_Roll * IMU1_Roll));
 }
 void IMU2_Angle() {
   imu2.get_angles();
-  IMU2_Pitch = imu2.euler.pitch;
-  IMU2_Roll = imu2.euler.roll;
+  IMU2_Pitch = imu2.euler.pitch * PI / 180;
+  IMU2_Roll = imu2.euler.roll * PI / 180;
   PEN_Angle = sqrt((IMU2_Pitch * IMU2_Pitch) + (IMU2_Roll * IMU2_Roll));
 }
 
@@ -776,23 +792,36 @@ void IMU2_Linear_Acceleration() {
 }
 
 void Acceleration_Computation() {
-  Z_DDOT =
-      IMU1_Y_Linear_Acc * sin(IMU1_Pitch) - IMU1_X_Linear_Acc * sin(IMU1_Roll) +
-      IMU1_Z_Linear_Acc * cos(sqrt((IMU1_Pitch*IMU1_Pitch)+(IMU1_Roll*IMU1_Roll)));
-
+  IMU1_Y_Filtered = Moving_Average4_1(IMU1_Y_Linear_Acc);
+  IMU1_X_Filtered = Moving_Average4_2(IMU1_X_Linear_Acc);
+  IMU1_Z_Filtered = Moving_Average2(IMU1_Z_Linear_Acc);
+  Z_DDOT_Fil4 =
+      IMU1_Y_Filtered * sin(IMU1_Pitch) - IMU1_X_Filtered * sin(IMU1_Roll) +
+      IMU1_Z_Filtered *
+          cos(sqrt((IMU1_Pitch * IMU1_Pitch) + (IMU1_Roll * IMU1_Roll)));
+  //   Z_DDOT = IMU1_Y_Linear_Acc * sin(IMU1_Pitch) -
+  //            IMU1_X_Linear_Acc * sin(IMU1_Roll) +
+  //            IMU1_Z_Linear_Acc *
+  //                cos(sqrt((IMU1_Pitch * IMU1_Pitch) + (IMU1_Roll *
+  //                IMU1_Roll)));
   y_ddot =
-      IMU1_Y_Linear_Acc * cos(IMU1_Pitch) - IMU1_Z_Linear_Acc * sin(IMU1_Pitch);
+      IMU1_Y_Filtered * cos(IMU1_Pitch) - IMU1_Z_Filtered * sin(IMU1_Pitch);
 
-  x_ddot =
-      IMU1_X_Linear_Acc * cos(IMU1_Roll) + IMU1_Z_Linear_Acc * sin(IMU1_Roll);
+  x_ddot = IMU1_X_Filtered * cos(IMU1_Roll) + IMU1_Z_Filtered * sin(IMU1_Roll);
 
-  Y_DDOT = sqrt((x_ddot * x_ddot) + (y_ddot * y_ddot));
+  Y_DDOT_Fil4 = sqrt((x_ddot * x_ddot) + (y_ddot * y_ddot));
   // Z_DDOT_Fil5 = Moving_Average5(Z_DDOT);
-  Z_DDOT_Fil4 = Moving_Average4_1(Z_DDOT);
+  //   Z_DDOT_Fil4 = Moving_Average4_1(Z_DDOT); //THIS IS THE ONE
   //   Z_DDOT_Fil3 = Moving_Average3(Z_DDOT);
   //   Z_DDOT_Fil2 = Moving_Average2(Z_DDOT);
-  Y_DDOT_Fil4 = Moving_Average4_2(Y_DDOT);
+  //   Y_DDOT_Fil4 = Moving_Average4_2(Y_DDOT); //THIS IS THE ONE
   LENGTH_Acc = -Y_DDOT_Fil4 * sin(PEN_Angle) + Z_DDOT_Fil4 * cos(PEN_Angle);
+  // PC.printf("%f %f %f %f %f %f \n\r", TIME1.read(), IMU1_X_Linear_Acc,
+  //           IMU1_Y_Linear_Acc, IMU1_X_Filtered, IMU1_Y_Filtered,
+  //           IMU1_Z_Filtered);
+  // PC.printf("%f %f %f %f %f %f \n\r", TIME1.read(), IMU1_Pitch,
+  //           IMU1_Roll, IMU1_X_Filtered, IMU1_Y_Filtered,
+  //           IMU1_Z_Filtered);
 }
 void FD_Computation() {
 
@@ -915,4 +944,4 @@ void CURRENT_SENSOR_ISR_Read() { CURRENT_Sensor_Flag = 1; }
 void PID_Position_ISR() { PID_Position_Flag = 1; }
 void PID_Velocity_ISR() { PID_Velocity_Flag = 1; }
 void PID_Current_ISR() { PID_Current_Flag = 1; }
-void SERIAL_SystemStatus_ISR(){SERIAL_SystemStatus_Flag=1;}
+void SERIAL_SystemStatus_ISR() { SERIAL_SystemStatus_Flag = 1; }
