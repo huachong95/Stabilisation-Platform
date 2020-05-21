@@ -58,8 +58,9 @@ AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 // PID PID_Velocity(0.5, 45.0, 0.0, PID_VELOCITY_RATE);
 // PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 // // PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
-PID PID_Position(10.6, 705.0, 0.0, PID_POSITION_RATE);
-PID PID_Velocity(1.65, 60.0, 0.0, PID_VELOCITY_RATE);
+PID PID_Position(16.6, 955.0, 0.0, PID_POSITION_RATE);
+PID PID_Velocity(1.65, 960.0, 0.0, PID_VELOCITY_RATE);
+// PID PID_Velocity(3.15, 20000.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(40, 30.0, 0, PID_CURRENT_RATE);
 
 Ticker ANGLE_ISR;
@@ -130,7 +131,8 @@ float MA4_Data1[4] = {0, 0, 0, 0};
 float MA4_Data2[4] = {0, 0, 0, 0};
 float MA4_Data3[4] = {0, 0, 0, 0};
 float MA3_Data[3] = {0, 0, 0};
-float MA2_Data[2] = {0, 0};
+float MA2_Data1[2] = {0, 0};
+float MA2_Data2[2] = {0, 0};
 
 const float A_filter_alpha = 0.975;
 const float V_filter_alpha = 1;
@@ -214,7 +216,8 @@ float Moving_Average4_1(float data);
 float Moving_Average4_2(float data);
 float Moving_Average4_3(float data);
 float Moving_Average3(float data);
-float Moving_Average2(float data);
+float Moving_Average2_1(float data);
+float Moving_Average2_2(float data);
 
 void SERIAL_Read();
 void SERIAL_Print();
@@ -469,7 +472,7 @@ void SERIAL_Print() {
   PC.printf("%f %f %f %f %f %f %f %f %f %f %f %f %f \n\r ", TIME1.read(),
             DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
             ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position, IMU1_Roll,
-            IMU1_Pitch, PEN_Angle, Y_DDOT_Fil4, Z_DDOT_Fil4,LENGTH_Acc);
+            IMU1_Pitch, PEN_Angle, Y_DDOT_Fil4, Z_DDOT_Fil4, LENGTH_Acc);
   //   PC.printf("X1:%f Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r",
   //   IMU1_X_Linear_Acc,IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT_Fil4,LENGTH_Acc);
 
@@ -591,7 +594,7 @@ void ENCODER_Check() {
   ENCODER_RPM_Raw =
       (float)(ENCODER_Change / (ENCODER_CPR * TIME1_Sample_Duration) *
               60); // right wheel RPM
-  ENCODER_RPM = Moving_Average3(ENCODER_RPM_Raw);
+  ENCODER_RPM = Moving_Average2_2(ENCODER_RPM_Raw);
   //    ENCODER_Speed = ENCODER_RPM * 2 * 3.1415 * 0.05; //velocity=r*w
   //    (radius of wheel is 5cm) ENCODER_Speed=60*ENCODER_RPM;
   ENCODER_Old_Count = ENCODER_Count;
@@ -794,7 +797,7 @@ void IMU2_Linear_Acceleration() {
 void Acceleration_Computation() {
   IMU1_Y_Filtered = Moving_Average4_1(IMU1_Y_Linear_Acc);
   IMU1_X_Filtered = Moving_Average4_2(IMU1_X_Linear_Acc);
-  IMU1_Z_Filtered = Moving_Average2(IMU1_Z_Linear_Acc);
+  IMU1_Z_Filtered = Moving_Average2_1(IMU1_Z_Linear_Acc);
   Z_DDOT_Fil4 =
       IMU1_Y_Filtered * sin(IMU1_Pitch) - IMU1_X_Filtered * sin(IMU1_Roll) +
       IMU1_Z_Filtered *
@@ -813,7 +816,7 @@ void Acceleration_Computation() {
   // Z_DDOT_Fil5 = Moving_Average5(Z_DDOT);
   //   Z_DDOT_Fil4 = Moving_Average4_1(Z_DDOT); //THIS IS THE ONE
   //   Z_DDOT_Fil3 = Moving_Average3(Z_DDOT);
-  //   Z_DDOT_Fil2 = Moving_Average2(Z_DDOT);
+  //   Z_DDOT_Fil2 = Moving_Average2_1(Z_DDOT);
   //   Y_DDOT_Fil4 = Moving_Average4_2(Y_DDOT); //THIS IS THE ONE
   LENGTH_Acc = -Y_DDOT_Fil4 * sin(PEN_Angle) + Z_DDOT_Fil4 * cos(PEN_Angle);
   // PC.printf("%f %f %f %f %f %f \n\r", TIME1.read(), IMU1_X_Linear_Acc,
@@ -921,10 +924,15 @@ float Moving_Average3(float data) {
   MA3_Data[1] = MA3_Data[0];
   return MA3_Data[0];
 }
-float Moving_Average2(float data) {
-  MA2_Data[0] = (data + MA2_Data[1]) / 2;
-  MA2_Data[1] = MA2_Data[0];
-  return MA2_Data[0];
+float Moving_Average2_1(float data) {
+  MA2_Data1[0] = (data + MA2_Data1[1]) / 2;
+  MA2_Data1[1] = MA2_Data1[0];
+  return MA2_Data1[0];
+}
+float Moving_Average2_2(float data) {
+  MA2_Data2[0] = (data + MA2_Data2[1]) / 2;
+  MA2_Data2[1] = MA2_Data2[0];
+  return MA2_Data2[0];
 }
 
 // ISR Functions
