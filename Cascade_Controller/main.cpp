@@ -58,7 +58,7 @@ AnalogIn CURRENT_Sensor(CURRENT_SENSOR_PIN);
 // PID PID_Velocity(0.5, 45.0, 0.0, PID_VELOCITY_RATE);
 // PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
 // // PID PID_Current(65, 30.0, 0, PID_CURRENT_RATE);
-PID PID_Position(6.6, 705.0, 0.0, PID_POSITION_RATE);
+PID PID_Position(10.6, 705.0, 0.0, PID_POSITION_RATE);
 PID PID_Velocity(1.65, 60.0, 0.0, PID_VELOCITY_RATE);
 PID PID_Current(40, 30.0, 0, PID_CURRENT_RATE);
 
@@ -466,10 +466,10 @@ void SERIAL_Print() {
   //               DEMANDED_Position, LEADSCREW_Position);
   //   }
 
-  PC.printf("%f %f %f %f %f %f %f %f %f %f %f %f \n\r ", TIME1.read(),
+  PC.printf("%f %f %f %f %f %f %f %f %f %f %f %f %f \n\r ", TIME1.read(),
             DEMANDED_Current_Total, MOTOR_Current, DEMANDED_Velocity_Total,
             ENCODER_RPM, DEMANDED_Position, LEADSCREW_Position, IMU1_Roll,
-            IMU1_Pitch, PEN_Angle, Y_DDOT_Fil4, Z_DDOT_Fil4);
+            IMU1_Pitch, PEN_Angle, Y_DDOT_Fil4, Z_DDOT_Fil4,LENGTH_Acc);
   //   PC.printf("X1:%f Y1:%f Z1:%f YDDOT:%f ZDDOT:%f LENGTH_Acc:%f \n\r",
   //   IMU1_X_Linear_Acc,IMU1_Y_Linear_Acc,IMU1_Z_Linear_Acc,Y_DDOT_Fil4,Z_DDOT_Fil4,LENGTH_Acc);
 
