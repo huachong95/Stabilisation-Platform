@@ -21,7 +21,7 @@
 #define PID_VELOCITY_RATE 0.001   // 1000HzSample Rate of PID_Velocity
 #define PID_CURRENT_RATE 0.0001   // 10000HzSample Rate of PID_Current
 #define CURRENT_MAX_RANGE 20      // Max Amps supported by Current Sensor
-#define LEADSCREW_INITIAL_POS 210 // Leadscrew initial position
+#define LEADSCREW_INITIAL_POS 250 // Leadscrew initial position
 #define CASCADE_MODE 3            // 1==C, 2==C&V 3==C&V&P
 
 #include "PID.h"
@@ -585,7 +585,8 @@ void PID_Velocity_Computation() {
   } else if (DEMANDED_Velocity < -MAX_MOTORSPEED) {
     DEMANDED_Velocity = -MAX_MOTORSPEED;
   }
-  DEMANDED_Velocity_Total = DEMANDED_Velocity - ERROR_Pos;
+//   DEMANDED_Velocity_Total = DEMANDED_Velocity - ERROR_Pos;
+  DEMANDED_Velocity_Total = - ERROR_Pos;
   PID_Velocity.setSetPoint(DEMANDED_Velocity_Total);
   PID_Velocity.setProcessValue(ENCODER_RPM);
   ERROR_Vel = -PID_Velocity.compute();
@@ -598,7 +599,8 @@ void PID_Current_Computation() {
   if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
     DEMANDED_Current = -CURRENT_MAX_RANGE;
   }
-  DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
+//   DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
+  DEMANDED_Current_Total =ERROR_Vel;
   PID_Current.setSetPoint(DEMANDED_Current_Total);
   PID_Current.setProcessValue(MOTOR_Current);
   MOTOR_Speed_PID = PID_Current.compute();
