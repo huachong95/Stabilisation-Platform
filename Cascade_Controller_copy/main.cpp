@@ -585,8 +585,8 @@ void PID_Velocity_Computation() {
   } else if (DEMANDED_Velocity < -MAX_MOTORSPEED) {
     DEMANDED_Velocity = -MAX_MOTORSPEED;
   }
-//   DEMANDED_Velocity_Total = DEMANDED_Velocity - ERROR_Pos;
-  DEMANDED_Velocity_Total = - ERROR_Pos;
+  DEMANDED_Velocity_Total = DEMANDED_Velocity - ERROR_Pos;
+//   DEMANDED_Velocity_Total = - ERROR_Pos;
   PID_Velocity.setSetPoint(DEMANDED_Velocity_Total);
   PID_Velocity.setProcessValue(ENCODER_RPM);
   ERROR_Vel = -PID_Velocity.compute();
@@ -599,8 +599,8 @@ void PID_Current_Computation() {
   if (DEMANDED_Current < -CURRENT_MAX_RANGE) {
     DEMANDED_Current = -CURRENT_MAX_RANGE;
   }
-//   DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
-  DEMANDED_Current_Total =ERROR_Vel;
+  DEMANDED_Current_Total = DEMANDED_Current + ERROR_Vel;
+//   DEMANDED_Current_Total =ERROR_Vel;
   PID_Current.setSetPoint(DEMANDED_Current_Total);
   PID_Current.setProcessValue(MOTOR_Current);
   MOTOR_Speed_PID = PID_Current.compute();

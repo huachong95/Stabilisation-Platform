@@ -239,16 +239,16 @@ void FD_Computation() {
   FD_OutputPos[0] =
       SAMPLING_TIME / 2 * (FD_OutputVel[0] + FD_OutputVel[1]) + FD_OutputPos[1];
 
-  //   FD_OutputVel_Unfiltered[0] =
-  //       SAMPLING_TIME / 2 * (FD_OutputAcc[0] + FD_OutputAcc[1]) +
-  //       FD_OutputVel_Unfiltered[1];
+    FD_OutputVel_Unfiltered[0] =
+        SAMPLING_TIME / 2 * (FD_OutputAcc[0] + FD_OutputAcc[1]) +
+        FD_OutputVel_Unfiltered[1];
   //   FD_OutputVel_Fil[0] =
   //       V_filter_alpha *
   //       (FD_OutputVel_Fil[1] + FD_OutputVel[0] - FD_OutputVel[1]);
-  //   FD_OutputPos_Unfiltered[0] =
-  //       SAMPLING_TIME / 2 *
-  //           (FD_OutputVel_Unfiltered[0] + FD_OutputVel_Unfiltered[1]) +
-  //       FD_OutputPos_Unfiltered[1];
+    FD_OutputPos_Unfiltered[0] =
+        SAMPLING_TIME / 2 *
+            (FD_OutputVel_Unfiltered[0] + FD_OutputVel_Unfiltered[1]) +
+        FD_OutputPos_Unfiltered[1];
   //   FD_OutputPos[0] =
   //       SAMPLING_TIME / 2 * (FD_OutputVel_Fil[0] + FD_OutputVel_Fil[1]) +
   //       FD_OutputPos[1];
@@ -260,8 +260,8 @@ void FD_Computation() {
   FD_OutputAcc_Fil[1] = FD_OutputAcc_Fil[0];
   //   FD_OutputVel_Fil[1] = FD_OutputVel_Fil[0];
   FD_OutputPos_Fil[1] = FD_OutputPos_Fil[0];
-  //   FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
-  //   FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
+    FD_OutputVel_Unfiltered[1] = FD_OutputVel_Unfiltered[0];
+    FD_OutputPos_Unfiltered[1] = FD_OutputPos_Unfiltered[0];
 }
 
 float Moving_Average5(float data) {
@@ -302,9 +302,9 @@ float Moving_Average2(float data) {
 void SERIAL_Print_ISR() { SERIAL_Print_Flag = 1; }
 void IMU_ISR() { IMU_Flag = 1; }
 void SERIAL_Print() {
-  PC.printf(
-      "1Pitch:%5.2f 1Roll:%5.2f 2Pitch:%5.2f 2Roll:%5.2f PenAngle:%5.2f \n\r",
-      IMU1_Pitch, IMU1_Roll, IMU2_Pitch, IMU2_Roll, PEN_Angle);
+//   PC.printf(
+//       "1Pitch:%5.2f 1Roll:%5.2f 2Pitch:%5.2f 2Roll:%5.2f PenAngle:%5.2f \n\r",
+//       IMU1_Pitch, IMU1_Roll, IMU2_Pitch, IMU2_Roll, PEN_Angle);
   // PC.printf("X: %5.2f, Y: %5.2f Z: %5.2f  X_A: %5.2f Y_A: %5.2f Z_A: %5.2f
   // "
   //             "Pitch: %5.2f Roll: %5.2f \n\r",
@@ -314,20 +314,20 @@ void SERIAL_Print() {
   //   PC.printf("xddot:%5.2f yddot:%5.2f ZDDOT:%5.2f YDDOT:%5.2f \n\r", x_ddot,
   //             y_ddot, Z_DDOT, Y_DDOT);
 
-  //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(),
-  //             FD_Acc_u[0], FD_OutputAcc[0], FD_OutputVel[0],
-  //             FD_OutputVel_Fil[0], FD_OutputPos[0], FD_OutputPos_Fil[0]);
+    // PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(),
+    //           FD_Acc_u[0], FD_OutputAcc[0], FD_OutputVel[0],
+    //           FD_OutputVel_Fil[0], FD_OutputPos[0], FD_OutputPos_Fil[0]);
 
-  //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r",
-  //   t.read(),
-  //             FD_Acc_u[0], FD_OutputAcc[0], FD_OutputAcc_Fil[0],
-  //             FD_OutputVel[0], FD_OutputPos_Fil[0],
-  //             FD_OutputVel_Unfiltered[0],
-  //             FD_OutputPos_Unfiltered[0],PEN_Angle);
+    PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r",
+    t.read(),
+              FD_Acc_u[0], FD_OutputAcc[0], FD_OutputAcc_Fil[0],
+              FD_OutputVel[0], FD_OutputPos_Fil[0],
+              FD_OutputVel_Unfiltered[0],
+              FD_OutputPos_Unfiltered[0],PEN_Angle);
 
-  //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(), FD_Acc_u[0],
-  //             FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
-  //             PEN_Angle);
+    // PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(), FD_Acc_u[0],
+    //           FD_OutputAcc_Fil[0], FD_OutputVel[0], FD_OutputPos_Fil[0],
+    //           PEN_Angle);
 
   //   PC.printf("%f %5.2f %5.2f %5.2f %5.2f %5.2f \n\r", t.read(), FD_Acc_u[0],
   //             Z_DDOT_Fil5, Z_DDOT_Fil4, Z_DDOT_Fil3, Z_DDOT_Fil2);
